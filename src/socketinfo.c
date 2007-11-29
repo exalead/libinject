@@ -15,6 +15,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include "socketinfo.h"
 
@@ -59,6 +60,9 @@ static SocketInfo* SocketInfo_setup(SocketInfo* si, int fd, int err) {
   si->fd   = fd;
   si->data = NULL;
   si->free = NULL;
+  pthread_mutex_init(&si->semLock, NULL);
+  si->sem  = 0;
+  si->toDestroy = false;
   errno = err;
   return si;
 }
@@ -108,10 +112,28 @@ void SocketInfo_destroy(SocketInfo* si) {
   if (si->free) {
     si->free(si);
   }
+  pthread_mutex_destroy(&si->semLock);
   free(si);
 }
 
 void SocketInfo_setData(SocketInfo* si, void* data, SocketInfoDataFree* cb) {
   si->data = data;
   si->free = cb;
+}
+
+void SocketInfo_lock(SocketInfo* si) {
+  pthread_mutex_lock(&si->semLock);
+  ++si->sem;
+  pthread_mutex_unlock(&si->semLock);
+}
+
+void SocketInfo_unlock(SocketInfo* si) {
+  bool toDestroy;
+  pthread_mutex_lock(&si->semLock);
+  si->sem--;
+  toDestroy = si->toDestroy && si->sem == 0;
+  pthread_mutex_unlock(&si->semLock);
+  if (toDestroy) {
+    SocketInfo_destroy(si);
+  }
 }

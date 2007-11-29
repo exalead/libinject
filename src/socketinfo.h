@@ -80,6 +80,10 @@ struct SocketInfo {
   HostAddress remote;         /**< Remote address. */
   bool        blocking;       /**< If true, the socket is blocking. */
 
+  bool        toDestroy;      /**< If true, the info can be destroied. */
+  int         sem;            /**< Number of accessors. */
+  pthread_mutex_t semLock;    /**< Lock to access the number of accessors. */
+
   void* data;                 /**< User data associated with the socket. */
   SocketInfoDataFree* free;   /**< Callback used to clear the user data. */
 };
@@ -122,6 +126,20 @@ void SocketInfo_destroy(SocketInfo* si);
  * @param cb   Remover callback
  */
 void SocketInfo_setData(SocketInfo* si, void* data, SocketInfoDataFree* cb);
+
+/** Register a new user.
+ *
+ * @param si The socket info.
+ */
+void SocketInfo_lock(SocketInfo* si);
+
+/** Unregister a user.
+ *
+ * If the toDestroy flag has been set, the socket info will be destroyed.
+ *
+ * @param si The socket info.
+ */
+void SocketInfo_unlock(SocketInfo* si);
 
 /** @} */
 

@@ -92,12 +92,20 @@ static inline SocketInfo* getInfos(int fd) {
     return NULL;
   }
   si = (SocketInfo*)LigHT_get(sockets, fd, true);
-  if (si == NULL) {
+  if (si == NULL || si->toDestroy) {
     si = SocketInfo_init(fd);
     (void)LigHT_put(sockets, fd, si, true, true);
   }
+  if (si) {
+    SocketInfo_lock(si);
+  }
   return si;
 }
+
+#define RELEASE_SI                                                             \
+  if (si) {                                                                    \
+    SocketInfo_unlock(si);                                                     \
+  }
 
 /** Get informations about the socket while connecting.
  */
@@ -119,13 +127,16 @@ static ssize_t readCB(int fd, void* buf, size_t len, int flags, void* data) {
 
 ssize_t read(int fd, void* buf, size_t len) {
   SocketInfo* si = NULL;
+  ssize_t ret;
 
   si = getInfos(fd);
   if (config && si) {
-    return ActionQueue_process(config->queue, si, Reading, readCB, buf, len, 0, NULL);
+    ret = ActionQueue_process(config->queue, si, Reading, readCB, buf, len, 0, NULL);
   } else {
-    return sysread(fd, buf, len);
+    ret = sysread(fd, buf, len);
   }
+  RELEASE_SI
+  return ret;
 }
 
 
@@ -137,13 +148,16 @@ static ssize_t recvCB(int fd, void* buf, size_t len, int flags, void* data) {
 
 ssize_t recv(int fd, void* buf, size_t len, int flags) {
   SocketInfo* si = NULL;
+  ssize_t ret;
 
   si = getInfos(fd);
   if (config && si) {
-    return ActionQueue_process(config->queue, si, Reading, recvCB, buf, len, flags, NULL);
+    ret = ActionQueue_process(config->queue, si, Reading, recvCB, buf, len, flags, NULL);
   } else {
-    return sysrecv(fd, buf, len, flags);
+    ret = sysrecv(fd, buf, len, flags);
   }
+  RELEASE_SI
+  return ret;
 }
 
 /* recvfrom */
@@ -156,16 +170,19 @@ static ssize_t recvfromCB(int fd, void* buf, size_t len, int flags, void* data) 
 ssize_t recvfrom(int fd, void* __restrict buf, size_t len, int flags,
                  __SOCKADDR_ARG addr, socklen_t* __restrict addr_len) {
   SocketInfo* si;
+  ssize_t ret;
   struct AddrData d;
   d.addr     = addr;
   d.addr_len = addr_len;
 
   si = getInfos(fd);
   if (config && si) {
-    return ActionQueue_process(config->queue, si, Reading, recvfromCB, buf, len, flags, &d);
+    ret = ActionQueue_process(config->queue, si, Reading, recvfromCB, buf, len, flags, &d);
   } else {
-    return sysrecvfrom(fd, buf, len, flags, addr, addr_len);
+    ret = sysrecvfrom(fd, buf, len, flags, addr, addr_len);
   }
+  RELEASE_SI
+  return ret;
 }
 
 #if 0 /* Not yet implemented. Should be done to be sure to catch all messages. */
@@ -185,13 +202,16 @@ static ssize_t writeCB(int fd, void* buf, size_t len, int flags, void* data) {
 
 ssize_t write(int fd, __const void* buf, size_t n) {
   SocketInfo* si;
+  ssize_t ret;
 
   si = getInfos(fd);
   if (config && si) {
-    return ActionQueue_process(config->queue, si, Writing, writeCB, (void*)buf, n, 0, NULL);
+    ret = ActionQueue_process(config->queue, si, Writing, writeCB, (void*)buf, n, 0, NULL);
   } else {
-    return syswrite(fd, buf, n);
+    ret = syswrite(fd, buf, n);
   }
+  RELEASE_SI
+  return ret;
 }
 
 
@@ -203,13 +223,16 @@ static ssize_t sendCB(int fd, void* buf, size_t len, int flags, void* data) {
 
 ssize_t send(int fd, __const void* buf, size_t n, int flags) {
   SocketInfo* si;
+  ssize_t ret;
 
   si = getInfos(fd);
   if (config && si) {
-    return ActionQueue_process(config->queue, si, Writing, sendCB, (void*)buf, n, flags, NULL);
+    ret = ActionQueue_process(config->queue, si, Writing, sendCB, (void*)buf, n, flags, NULL);
   } else {
-    return syssend(fd, buf, n, flags);
+    ret = syssend(fd, buf, n, flags);
   }
+  RELEASE_SI
+  return ret;
 }
 
 
@@ -223,16 +246,19 @@ static ssize_t sendtoCB(int fd, void* buf, size_t len, int flags, void* data) {
 ssize_t sendto(int fd, __const void* buf, size_t n, int flags,
                __CONST_SOCKADDR_ARG addr, socklen_t addr_len) {
   SocketInfo* si;
+  ssize_t ret;
   struct ConstAddrData d;
   d.addr     = addr;
   d.addr_len = addr_len;
 
   si = getInfos(fd);
   if (config && si) {
-    return ActionQueue_process(config->queue, si, Writing, sendtoCB, (void*)buf, n, flags, &d);
+    ret = ActionQueue_process(config->queue, si, Writing, sendtoCB, (void*)buf, n, flags, &d);
   } else {
-    return syssendto(fd, buf, n, flags, addr, addr_len);
+    ret = syssendto(fd, buf, n, flags, addr, addr_len);
   }
+  RELEASE_SI
+  return ret;
 }
 
 #if 0 /* Not yet implemented, should be done to be sure to catch all messages. */
@@ -287,7 +313,9 @@ int close(int fd) {
   }
   if (si) {
     LigHT_remove(sockets, fd, true);
+    si->toDestroy = true;
   }
+  RELEASE_SI
   return ret;
 }
 
@@ -317,7 +345,7 @@ void inj_init(void) {
     config  = NULL;
     sockets = NULL;
   } else {
-    sockets = LigHT_init(16380, (LigHTDataFree*)SocketInfo_destroy);
+    sockets = LigHT_init(16380, NULL);
     if ((config = Config_init(getenv("LIBINJ_CONFIG"))) == NULL) {
       config = Config_init(DEFAULT_CONFIG);
     }
