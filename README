@@ -1,0 +1,50 @@
+Installation:
+=============
+> make
+> make install
+
+The 'make install' command can take some arguments:
+prefix = global prefix for installation (default = $HOME)
+libdir = directory where the libs should be installed (default = prefix/lib)
+bindir = directory where the binaries should be installed (default = prefix/bin)
+
+So
+> make prefix=$HOME install # install in your home ($HOME/bin and $HOME/lib)
+> make libdir=$PWD  install # install bin in $HOME/bin, but use the development lib
+
+
+Usage:
+======
+
+Once install, you have 3 scripts:
+> inject
+> injectgraph
+> injecthexdump
+
+
+* inject:
+Wrapper to preload the library again the program you want to run. You can specify
+the ruleset file to use (default is $PWD/libinject.rules)
+
+eg:
+> inject -c myrules -- myprog with its arguments
+
+You can refer to 'inject -h' to get help.
+
+
+* injectgraph
+Build a graph from the output of the 'log' action.
+
+> injectgraph -h
+
+
+* injecthexdump
+Display content of the output of the 'dump' action.
+
+> injecthexdump -h
+
+
+You can get information about ruleset syntax by generating doxygen documentation :
+> make doc
+
+And reading the content of the "Action rule", "Action action" and "Action condition" modules
