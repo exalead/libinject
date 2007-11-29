@@ -35,7 +35,7 @@ def showEntry(time, type, proto, lport, a1, a2, a3, a4, port, success, length, d
     addr = "tcp:"
   else:
     addr = "udp:"
-  addr += lport + ":[" + str(a4) + "." + str(a3) + "." + str(a2) + "." + str(a1) + "]:" + str(port)
+  addr += str(lport) + ":[" + str(a4) + "." + str(a3) + "." + str(a2) + "." + str(a1) + "]:" + str(port)
   if type == 1:
     text = "read"
   elif type == 2:
