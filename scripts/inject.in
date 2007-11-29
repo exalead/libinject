@@ -1,0 +1,27 @@
+#!/bin/sh
+
+function usage()
+{
+  echo "Error: $1" >&2
+  echo "Usage: $0 [-c|--config ruleset] -- command" >&2
+  exit
+}
+
+config="libinject.rules"
+set -- $(getopt -o 'c:' -l 'config:' -n $0 -u  -- $*)
+for opt ; do
+  case $opt in
+    "-c"|"--config") shift; config=$1; shift;;
+    "--") shift; break;;
+  esac
+done
+
+if [ $# == 0 ] ; then
+  usage "No command given"
+fi
+
+if ! [ -f "$config" ] ; then
+  usage "Can not find the ruleset file ${config}"
+fi
+
+LIBINJ_CONFIG=$config LD_PRELOAD=@@LIBDIR@@/libinject.so $*

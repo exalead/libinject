@@ -1,0 +1,4 @@
+[Runtime]
+pipe:/tmp/injectpipe
+
+; vim:set syntax=libinject:

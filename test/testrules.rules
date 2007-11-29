@@ -1,0 +1,12 @@
+10 on ip  from any to any when always  do-once-per-socket echo NewSocket continue
+14 on ip  from dns to me  when always  do hang 2000 continue
+15 on ip  from me  to dns when always  do echo DNSquery stop
+16 on ip  from dns to me  when always  do echo DNSanswer stop
+20 on tcp from any to me port 42420 when always do echo ReceivedTCP continue
+30 on tcp from me  to any when always  do echo SentTCP continue
+40 on udp from any to me  when always  do echo ReceivedUDP continue
+50 on udp from me  to any when always  do echo SentTCP continue
+60 on ip  from any to any when matched do-once echo ImHappy stop
+70 on ip  from any to any when matched do-once echo ImNotSoHappyAfterAll stop
+
+; vim:set syntax=libinject:

@@ -1,0 +1,11 @@
+include ../../Makefile.inc
+ACTIONS := $(shell echo *.c | sed 's/\.c/.o/g')
+
+all: $(ACTIONS)
+
+$(ACTIONS): %.o: %.c ../actionsdk.h ../actionlist.h ../conditionlist.h ../socketinfo.h ../parser.h ../ligHT.h ../actions.h Makefile
+
+clean:
+	-rm *.o
+
+.PHONY: all clean
