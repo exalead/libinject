@@ -88,10 +88,10 @@ def buildGraph(name, filename, data):
     except:
       w_length[pos] = 0
       w_packet[pos] = 0
-    datafile.write(str(i - min) + " " + str(r_length[pos]) + " " + str(sum(r_length.values()) / 60)
-                                + " -" + str(w_length[pos]) + " -" + str(sum(w_length.values()) / 60)
-                                + " " + str(r_packet[pos]) + " " + str(sum(r_packet.values()) / 60)
-                                + " -" + str(w_packet[pos]) + " -" + str(sum(w_packet.values()) / 60)
+    datafile.write(str(i - min) + " " + str(r_length[pos]) + " " + str(sum(r_length.values()) / 60.)
+                                + " -" + str(w_length[pos]) + " -" + str(sum(w_length.values()) / 60.)
+                                + " " + str(r_packet[pos]) + " " + str(sum(r_packet.values()) / 60.)
+                                + " -" + str(w_packet[pos]) + " -" + str(sum(w_packet.values()) / 60.)
                                 + "\n")
   datafile.close()
   cmdfile.close()
