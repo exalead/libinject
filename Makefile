@@ -33,14 +33,14 @@ install: install-bin install-lib
 install-bin: $(bindir)/inject $(bindir)/injectgraph $(bindir)/injecthexdump
 install-lib: $(libdir)/libinject.so
 
-$(bindir)/inject: scripts/inject.in $(bindir)
+$(bindir)/inject: tools/inject.in $(bindir)
 	sed -e 's;@@LIBDIR@@;$(libdir);g' $< > $@
 	chmod +x $@
 
-$(bindir)/injectgraph: scripts/graphlog.py $(bindir)
+$(bindir)/injectgraph: tools/graphlog.py $(bindir)
 	cp $< $@
 
-$(bindir)/injecthexdump: scripts/readdump.py $(bindir)
+$(bindir)/injecthexdump: tools/readdump.py $(bindir)
 	cp $< $@
 
 $(libdir)/libinject.so: libinject.so $(libdir)
@@ -48,7 +48,7 @@ $(libdir)/libinject.so: libinject.so $(libdir)
 
 install-vim-syntax: $(vimdir)/libinject.vim
 
-$(vimdir)/libinject.vim: scripts/libinject.vim $(vimdir)
+$(vimdir)/libinject.vim: tools/libinject.vim $(vimdir)
 	cp $< $@
 
 $(bindir) $(libdir) $(vimdir):

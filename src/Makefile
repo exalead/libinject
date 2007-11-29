@@ -27,11 +27,11 @@ $(SUBDIRS):
 actionlist.h conditionlist.h: %: .%
 	@[ "$$(md5sum $@ | awk '{ print $$1 ; }')" = "$$(md5sum .$@ |  awk '{ print $$1 ; }')" ] || cp .$@ $@
 
-.actionlist.h: actions/*.c ../scripts/buildActions.sh Makefile
-	../scripts/buildActions.sh actions ActionTask > $@
+.actionlist.h: actions/*.c ../tools/buildActions.sh Makefile
+	../tools/buildActions.sh actions ActionTask > $@
 
-.conditionlist.h: conditions/*.c ../scripts/buildActions.sh Makefile
-	../scripts/buildActions.sh conditions ActionCondition > $@
+.conditionlist.h: conditions/*.c ../tools/buildActions.sh Makefile
+	../tools/buildActions.sh conditions ActionCondition > $@
 
 clean: $(CLEANSUBDIRS)
 	-rm conditionlist.h actionlist.h
