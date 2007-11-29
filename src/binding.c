@@ -88,7 +88,7 @@ struct ConstAddrData {
  */
 static inline SocketInfo* getInfos(int fd) {
   SocketInfo* si = NULL;
-  if (!sockets) {
+  if (!config || !sockets) {
     return NULL;
   }
   si = (SocketInfo*)LigHT_get(sockets, fd, true);
@@ -130,7 +130,7 @@ ssize_t read(int fd, void* buf, size_t len) {
   ssize_t ret;
 
   si = getInfos(fd);
-  if (config && si) {
+  if (si) {
     ret = ActionQueue_process(config->queue, si, Reading, readCB, buf, len, 0, NULL);
   } else {
     ret = sysread(fd, buf, len);
@@ -151,7 +151,7 @@ ssize_t recv(int fd, void* buf, size_t len, int flags) {
   ssize_t ret;
 
   si = getInfos(fd);
-  if (config && si) {
+  if (si) {
     ret = ActionQueue_process(config->queue, si, Reading, recvCB, buf, len, flags, NULL);
   } else {
     ret = sysrecv(fd, buf, len, flags);
@@ -176,7 +176,7 @@ ssize_t recvfrom(int fd, void* __restrict buf, size_t len, int flags,
   d.addr_len = addr_len;
 
   si = getInfos(fd);
-  if (config && si) {
+  if (si) {
     ret = ActionQueue_process(config->queue, si, Reading, recvfromCB, buf, len, flags, &d);
   } else {
     ret = sysrecvfrom(fd, buf, len, flags, addr, addr_len);
@@ -205,7 +205,7 @@ ssize_t write(int fd, __const void* buf, size_t n) {
   ssize_t ret;
 
   si = getInfos(fd);
-  if (config && si) {
+  if (si) {
     ret = ActionQueue_process(config->queue, si, Writing, writeCB, (void*)buf, n, 0, NULL);
   } else {
     ret = syswrite(fd, buf, n);
@@ -226,7 +226,7 @@ ssize_t send(int fd, __const void* buf, size_t n, int flags) {
   ssize_t ret;
 
   si = getInfos(fd);
-  if (config && si) {
+  if (si) {
     ret = ActionQueue_process(config->queue, si, Writing, sendCB, (void*)buf, n, flags, NULL);
   } else {
     ret = syssend(fd, buf, n, flags);
@@ -252,7 +252,7 @@ ssize_t sendto(int fd, __const void* buf, size_t n, int flags,
   d.addr_len = addr_len;
 
   si = getInfos(fd);
-  if (config && si) {
+  if (si) {
     ret = ActionQueue_process(config->queue, si, Writing, sendtoCB, (void*)buf, n, flags, &d);
   } else {
     ret = syssendto(fd, buf, n, flags, addr, addr_len);
@@ -283,13 +283,11 @@ int connect(int fd, __CONST_SOCKADDR_ARG addr, socklen_t addrlen) {
   d.addr_len = addrlen;
 
   si = getInfosOnConnect(fd, &d);
-  if (config && si) {
+  if (si) {
     ret = ActionQueue_process(config->queue, si, Connecting, connectCB, NULL, 0, 0, &d);
+    SocketInfo_destroy(si);
   } else {
     ret = sysconnect(fd, addr, addrlen);
-  }
-  if (si) {
-    SocketInfo_destroy(si);
   }
   return ret;
 }
@@ -306,14 +304,12 @@ int close(int fd) {
   int ret;
 
   si = getInfos(fd);
-  if (config && si) {
-    ret = ActionQueue_process(config->queue, si, Closing, closeCB, NULL, 0, 0, NULL);
-  } else {
-    ret = sysclose(fd);
-  }
   if (si) {
     LigHT_remove(sockets, fd, true);
+    ret = ActionQueue_process(config->queue, si, Closing, closeCB, NULL, 0, 0, NULL);
     si->toDestroy = true;
+  } else {
+    ret = sysclose(fd);
   }
   RELEASE_SI
   return ret;

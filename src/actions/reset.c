@@ -24,7 +24,6 @@ static bool ActionReset_perform(int pos, ActionData* data, SocketInfo* si,
   if (state->done) {
     return Action_error("Can't reset a connection when action has already been performed");
   }
-  si->toDestroy = true;
   close(si->fd);
   state->done = true;
   state->result = -1;
