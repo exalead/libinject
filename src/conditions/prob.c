@@ -34,8 +34,7 @@ static void ActionProb_write(char** buffer, ActionData* data) {
 bool ActionProb_match(ActionData* data, SocketInfo* si,
                       SocketInfoDirection direction, bool matched) {
   unsigned int val = rand();
-  val %= 100;
-  return val < (unsigned int)data[0].i;
+  return (val % 100) <= (unsigned int)data[0].i;
 }
 
 void ActionProb_register(ActionConditionDefinition* definition) {

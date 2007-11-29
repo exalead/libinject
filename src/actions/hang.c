@@ -9,7 +9,7 @@
  *****************************************************************************/
 
 #include <errno.h>
-#include <unistd.h>
+#include <time.h>
 
 #include "../actions.h"
 #include "../actionsdk.h"
@@ -37,16 +37,11 @@ bool ActionHang_perform(int pos, ActionData* data, SocketInfo* si,
     state->result  = -1;
     return true;
   } else {
-    int seconds;
-    int useconds;
-    seconds = data[0].i / 1000;
-    useconds = 1000 * (data[0].i - (seconds * 1000));
-    while (seconds > 0) {
-      seconds = sleep(seconds);
-    }
-    while (useconds > 0) {
-      useconds = sleep(useconds);
-    }
+    struct timespec timer;
+    timer.tv_sec  = data[0].i / 1000;
+    timer.tv_nsec = data[0].i - (1000 * timer.tv_sec);
+    timer.tv_nsec *= 1000000;
+    nanosleep(&timer, &timer); /* More tests could leed to infinite loop */
     return true;
   }
 }

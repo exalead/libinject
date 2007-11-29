@@ -360,25 +360,24 @@ static bool Action_addressMatch(const struct HostAddress* address,
 
 inline bool Action_match(Action* action, SocketInfo* si,
                          SocketInfoDirection direction, bool matched) {
-  const bool cond = Condition(action).match(action->condition.data,
-                                            si, direction, matched)
-                  && (si->proto & action->proto);
   if (!(action->direction & direction)) {
+    return false;
+  }
+  if (!Condition(action).match(action->condition.data, si, direction, matched)
+       || !(si->proto & action->proto)) {
     return false;
   }
   switch (action->direction) {
    case Data: case Writing: case Reading:
     if (action->to.type != AH_None) {
-     return cond
-        && Action_addressMatch(direction == Writing ? &action->from : &action->to, &si->local)
-        && Action_addressMatch(direction == Reading ? &action->from : &action->to, &si->remote);
+      return Action_addressMatch(direction == Writing ? &action->from : &action->to, &si->local)
+          && Action_addressMatch(direction == Reading ? &action->from : &action->to, &si->remote);
     }
    case Any_Dir:
-    return cond
-        && (Action_addressMatch(&action->from, &si->local)
-            || Action_addressMatch(&action->from, &si->remote));
+    return Action_addressMatch(&action->from, &si->local)
+        || Action_addressMatch(&action->from, &si->remote);
    case Connecting: case Closing:
-    return cond && Action_addressMatch(&action->to, &si->remote);
+    return Action_addressMatch(&action->to, &si->remote);
    default:
     return false;
   }
