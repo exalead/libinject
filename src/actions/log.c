@@ -31,6 +31,7 @@ static bool ActionLog_argument(const char** from, void* dest, const void* constr
     if (strcmp(data[1].str, "-") == 0) {
       data[0].p = stderr;
     }
+    pthread_mutex_init(&data[2].mtx, NULL);
     return true;
   }
   return false;
@@ -38,8 +39,10 @@ static bool ActionLog_argument(const char** from, void* dest, const void* constr
 
 bool ActionLog_perform(int pos, ActionData* data, SocketInfo* si,
                        ActionCallData* state) {
-  FILE* file = (FILE*)data[0].p;
+  FILE* file;
 
+  pthread_mutex_lock(&data[2].mtx);
+  file = (FILE*)data[0].p;
   if (file == NULL) {
     char fname[FILENAME_MAX + 1];
     fname[FILENAME_MAX] = '\0';
@@ -76,6 +79,7 @@ bool ActionLog_perform(int pos, ActionData* data, SocketInfo* si,
 #undef TIME
 
   fflush(file);
+  pthread_mutex_unlock(&data[2].mtx);
   return true;
 }
 
@@ -88,6 +92,7 @@ static void ActionLog_close(ActionData* data) {
     fclose(data[0].p);
   }
   free(data[1].str);
+  pthread_mutex_destroy(&data[2].mtx);
 }
 
 void ActionLog_register(ActionTaskDefinition* definition) {

@@ -37,6 +37,7 @@ static bool ActionDump_argument(const char** from, void* dest, const void* const
   union ActionData* data = (union ActionData*)dest;
   if (Parse_word(from, &data[1].str, NULL)) {
     data[0].p = NULL;
+    pthread_mutex_init(&data[2].mtx, NULL);
     return true;
   }
   return true;
@@ -44,12 +45,14 @@ static bool ActionDump_argument(const char** from, void* dest, const void* const
 
 static bool ActionDump_perform(int pos, ActionData* data, SocketInfo* si,
                                ActionCallData* state) {
-  FILE* file = (FILE*)data[0].p;
+  FILE* file = NULL;
   int8_t oneByte;
   int16_t twoBytes;
   int32_t fourBytes;
-  uint64_t time = getMSecTime();
+  uint64_t timer = getMSecTime();
 
+  pthread_mutex_lock(&data[2].mtx);
+  file = (FILE*)data[0].p;
   if (file == NULL) {
     char fname[FILENAME_MAX + 1];
     fname[FILENAME_MAX] = '\0';
@@ -57,16 +60,17 @@ static bool ActionDump_perform(int pos, ActionData* data, SocketInfo* si,
       data[0].p = file = fopen(fname, "w");
     }
     if (data[0].p == NULL) {
+      pthread_mutex_unlock(&data[2].mtx);
       return Action_error("Can't open dump file... abort");
     }
   }
 
-  fwrite(&time, 8, 1, file);
+  fwrite(&timer, 8, 1, file);
   oneByte = state->direction;
   fwrite(&oneByte, 1, 1, file);
   oneByte = si->proto;
   fwrite(&oneByte, 1, 1, file);
-  twoBytes = (state->direction == Connecting ? 0 : si->local.port);
+  twoBytes = si->local.port;
   fwrite(&twoBytes, 2, 1, file);
   fwrite(&si->remote.addr, 4, 1, file);
   twoBytes = si->remote.port;
@@ -76,22 +80,18 @@ static bool ActionDump_perform(int pos, ActionData* data, SocketInfo* si,
     fwrite(&oneByte, 1, 1, file);
     if (state->result == -1) {
       fwrite(&errno, 4, 1, file);
-      fflush(file);
-      return true;
-    } else if (!(Data & state->direction)) {
-      fflush(file);
-      return true;
     }
   } else {
     oneByte = 0;
     fwrite(&oneByte, 1, 1, file);
   }
-  if ((Data & state->direction)) {
+  if ((Data & state->direction) && state->result != -1) {
     fourBytes = READ_BUFFER_LENGTH(state);
     fwrite(&fourBytes, 4, 1, file);
     fwrite(READ_BUFFER(state), 1, fourBytes, file);
   }
   fflush(file);
+  pthread_mutex_unlock(&data[2].mtx);
   return true;
 }
 
@@ -104,6 +104,7 @@ static void ActionDump_close(ActionData* data) {
     fclose(data[0].p);
   }
   free(data[1].str);
+  pthread_mutex_destroy(&data[2].mtx);
 }
 
 void ActionDump_register(ActionTaskDefinition* definition) {

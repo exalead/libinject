@@ -94,7 +94,7 @@ def readEntry(file):
   if ( type != 4 and type != 8 ) or success == -1: # not connection, so w
     len = file.read(4)
     len = unpack('i', len)[0]
-  if type != 4 and type != 8 and success != -1:
+  if len > 0 and success != -1:
     data = array('B')
     data.fromfile(file, len)
     data = data.tolist()

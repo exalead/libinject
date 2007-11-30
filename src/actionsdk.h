@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <stdio.h> /* Not explicitely needed, most writers need this. */
+#include <pthread.h>
 
 #include "parser.h"
 #include "socketinfo.h"
@@ -111,6 +112,7 @@ union ActionData {
   uint64_t  ul; /**< <b>u</b>nsigned <b>l</b>long version. */
   void*     p;  /**< <b>p</b>ointer version. */
   char*     str;/**< <b>str</b>ing pointer version. */
+  pthread_mutex_t mtx; /**< <b>m</b>u<b>t</b>u<b>x</b> version. */
 };
 
 /** Condition with arguments.
