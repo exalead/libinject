@@ -124,34 +124,28 @@ SocketInfo* SocketInfo_check(SocketInfo* si, int fd) {
   int err = errno;
 
 #define RELEASE_SI                                                             \
-  {                                                                            \
-    bool toDestroy = false;                                                    \
-    si->toDestroy  = true;                                                     \
-    pthread_mutex_lock(&si->semLock);                                          \
-    toDestroy = (si->sem == 0);                                                \
-    pthread_mutex_unlock(&si->semLock);                                        \
-    if (toDestroy) {                                                           \
-      SocketInfo_destroy(si);                                                  \
-    }                                                                          \
-  }                                                                            \
+  si->toDestroy  = true;                                                       \
+  SocketInfo_unlock(si);                                                       \
   errno = err;                                                                 \
   return NULL;
 
   if (si == NULL) {
     return NULL;
   }
+  SocketInfo_lock(si);
+  if (si->toDestroy) {
+    RELEASE_SI
+  }
   if (si->proto == AP_UDP &&
       (getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &len) == -1
        || (type != SOCK_STREAM && type != SOCK_DGRAM)
        || (si->proto != (type == SOCK_STREAM ? AP_TCP : AP_UDP)))) {
-    free(si);
     RELEASE_SI
   }
   if (si->local.port == 0 && !SocketInfo_fetchData(fd, getsockname, &si->local)) {
     RELEASE_SI
   }
   errno = err;
-
 #undef RELEASE_SI
   return si;
 }

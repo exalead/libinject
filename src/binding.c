@@ -99,11 +99,10 @@ static inline SocketInfo* getInfos(int fd) {
   si = (SocketInfo*)LigHT_get(sockets, fd, true);
   si = SocketInfo_check(si, fd);
   if (si == NULL || si->toDestroy) {
-    si = SocketInfo_init(fd);
+    if ((si = SocketInfo_init(fd))) {
+      SocketInfo_lock(si);
+    }
     (void)LigHT_put(sockets, fd, si, true, true);
-  }
-  if (si) {
-    SocketInfo_lock(si);
   }
   return si;
 }
