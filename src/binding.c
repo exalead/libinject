@@ -84,6 +84,11 @@ struct ConstAddrData {
    socklen_t addr_len;        /**< Destination address length. */
 };
 
+#define RELEASE_SI                                                             \
+  if (si) {                                                                    \
+    SocketInfo_unlock(si);                                                     \
+  }
+
 /** Get informations about the socket.
  */
 static inline SocketInfo* getInfos(int fd) {
@@ -92,6 +97,7 @@ static inline SocketInfo* getInfos(int fd) {
     return NULL;
   }
   si = (SocketInfo*)LigHT_get(sockets, fd, true);
+  si = SocketInfo_check(si, fd);
   if (si == NULL || si->toDestroy) {
     si = SocketInfo_init(fd);
     (void)LigHT_put(sockets, fd, si, true, true);
@@ -102,18 +108,24 @@ static inline SocketInfo* getInfos(int fd) {
   return si;
 }
 
-#define RELEASE_SI                                                             \
-  if (si) {                                                                    \
-    SocketInfo_unlock(si);                                                     \
-  }
-
 /** Get informations about the socket while connecting.
  */
 static inline SocketInfo* getInfosOnConnect(int fd, const struct ConstAddrData* data) {
+  SocketInfo* si = NULL;
+  SocketInfo* old = NULL;
   if (!sockets) {
     return NULL;
   }
-  return SocketInfo_initLight(fd, data->addr, data->addr_len);
+  si = SocketInfo_initLight(fd, data->addr, data->addr_len);
+  SocketInfo_lock(si);
+  old = (SocketInfo*)LigHT_get(sockets, fd, true);
+  if (old) {
+    SocketInfo_lock(old);
+    old->toDestroy = true;
+    SocketInfo_unlock(old);
+  }
+  (void)LigHT_put(sockets, fd, si, true, true);
+  return si;
 }
 
 
@@ -285,10 +297,10 @@ int connect(int fd, __CONST_SOCKADDR_ARG addr, socklen_t addrlen) {
   si = getInfosOnConnect(fd, &d);
   if (si) {
     ret = ActionQueue_process(config->queue, si, Connecting, connectCB, NULL, 0, 0, &d);
-    SocketInfo_destroy(si);
   } else {
     ret = sysconnect(fd, addr, addrlen);
   }
+  RELEASE_SI
   return ret;
 }
 

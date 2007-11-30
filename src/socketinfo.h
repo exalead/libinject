@@ -119,6 +119,14 @@ SocketInfo* SocketInfo_initLight(int fd, __CONST_SOCKADDR_ARG addr, socklen_t ad
  */
 void SocketInfo_destroy(SocketInfo* si);
 
+/** Check the SocketInfo is really associated to the given socket.
+ *
+ * @param si The socket info.
+ * @param fd File descriptor of the socket.
+ * @return The socket info if the check pass, NULL if an error occured.
+ */
+SocketInfo* SocketInfo_check(SocketInfo* si, int fd);
+
 /** Set socket info user data and register the corresponding remover.
  *
  * @param si   The socket infos.

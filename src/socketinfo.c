@@ -116,6 +116,46 @@ void SocketInfo_destroy(SocketInfo* si) {
   free(si);
 }
 
+#include <stdio.h>
+
+SocketInfo* SocketInfo_check(SocketInfo* si, int fd) {
+  int type = 0;
+  socklen_t len = sizeof(int);
+  int err = errno;
+
+#define RELEASE_SI                                                             \
+  {                                                                            \
+    bool toDestroy = false;                                                    \
+    si->toDestroy  = true;                                                     \
+    pthread_mutex_lock(&si->semLock);                                          \
+    toDestroy = (si->sem == 0);                                                \
+    pthread_mutex_unlock(&si->semLock);                                        \
+    if (toDestroy) {                                                           \
+      SocketInfo_destroy(si);                                                  \
+    }                                                                          \
+  }                                                                            \
+  errno = err;                                                                 \
+  return NULL;
+
+  if (si == NULL) {
+    return NULL;
+  }
+  if (si->proto == AP_UDP &&
+      (getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &len) == -1
+       || (type != SOCK_STREAM && type != SOCK_DGRAM)
+       || (si->proto != (type == SOCK_STREAM ? AP_TCP : AP_UDP)))) {
+    free(si);
+    RELEASE_SI
+  }
+  if (si->local.port == 0 && !SocketInfo_fetchData(fd, getsockname, &si->local)) {
+    RELEASE_SI
+  }
+  errno = err;
+
+#undef RELEASE_SI
+  return si;
+}
+
 void SocketInfo_setData(SocketInfo* si, void* data, SocketInfoDataFree* cb) {
   si->data = data;
   si->free = cb;
