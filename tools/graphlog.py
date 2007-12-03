@@ -20,6 +20,7 @@
 #   - h: print help
 #   - b browser: open a browser after graph generation
 #   - B: open the default browser after graph generation
+#   - r s: active graph refreshing every 's' seconds
 #
 # The default mask is %proto:%lport:[%addr]:%rport. Mask is useful to
 # group remote port talking to the same local port (or vice-versa),
@@ -34,7 +35,7 @@
 # @sa ATT_Log, ATT_Dump, ReadDump
 # @{
 
-import sys, re, os, getopt
+import sys, re, os, getopt, time
 
 mask = "%proto:%lport:[%addr]:%rport"
 min = 0
@@ -43,6 +44,7 @@ data  = { }
 gdata = { 'write': { }, 'read': { } }
 browser = "firefox"
 browsing = False
+refresh  = 0
 
 def buildGraph(name, filename, data):
   """Build the graph for the given data
@@ -159,30 +161,34 @@ def buildOutput(filename):
   """
   global data
   global gdata
-  html = open(filename + ".html", "w")
-  html.write(
-  """<html>
+  global refresh
+  html = "<html><head><title>Network activity graphes</title>"
+  if refresh > 0:
+    html += "<meta http-equiv=\"refresh\" content=\"" + str(refresh) + "\" />"
+  html += """</head>
       <body style="width: 820; margin-right: auto; margin-left: auto">
         <h1 id="index">Index</h1>
         <ul>
-          <li><a href="#global">Global</a></li>""")
+          <li><a href="#global">Global</a></li>"""
   imgs  = """<h1 id="global">Global</h1>
              <p><img src=\"""" + filename + """_global.png" alt="Global rate" /></p>
              <p style="font-size: smaller; text-align: right"><a href="#index">back to index</a></p>"""
   buildGraph("global", filename + "_global", gdata)
   for (address, datarate) in data.iteritems():
-    filename = address.replace('[', '_').replace(']', '_').replace(':', '')
-    html.write("<li><a href=\"#" + filename + "\">" + address + "</a></li>\n")
-    imgs += """<h1 id=\"""" + filename + """\">""" + address + """</h1>
-               <p><img src=\"""" + filename + """.png" alt="Rate for """ + address + """\" /></p>
+    graphname = address.replace('[', '_').replace(']', '_').replace(':', '')
+    html += "<li><a href=\"#" + graphname + "\">" + address + "</a></li>\n"
+    imgs += """<h1 id=\"""" + graphname + """\">""" + address + """</h1>
+               <p><img src=\"""" + graphname + """.png" alt="Rate for """ + address + """\" /></p>
                <p style="font-size: smaller; text-align: right"><a href="#index">back to index</a></p>"""
-    buildGraph(address, filename, datarate)
-  html.write("</ul>" + imgs + "</body></html>")
-  html.close()
+    buildGraph(address, graphname, datarate)
+  html += "</ul>" + imgs + "</body></html>"
+  file = open(filename + ".html", "w")
+  file.write(html)
+  file.close()
 
 def usage():
   """Print usage informations"""
-  print "Usage: " + sys.argv[0] + " [-h] [-m mask] [-b browser|-B] logfile1 [logfile2 [logfile3 ...]]"
+  print "Usage: " + sys.argv[0] + " [-h] [-m mask] [-b browser|-B] [-r time] logfile1 [logfile2 [logfile3 ...]]"
   print "   -h print this help"
   print "   -m mask: set the address mask. The default mask is %proto:%lproto:[%addr]:%rport"
   print "            in order to group all accesses from the same proto, just set -m \"%proto\""
@@ -194,12 +200,13 @@ def usage():
   print "           %rport: remote port"
   print "   -b browser: activate browsing with the given browser"
   print "   -B: activate browsing with the default browser (firefox)"
+  print "   -r s: activate graph refreshing every 's' seconds"
   print "   logfile is the output of the log action or of the processing of a dump by injecthexdump -s"
   print "   \"-\" means stdin"
 
 
 try:
-  opt, args = getopt.getopt(sys.argv[1:], "m:hb:B")
+  opt, args = getopt.getopt(sys.argv[1:], "m:hb:Br:")
 except:
   usage()
   sys.exit(1)
@@ -216,19 +223,30 @@ for o, a in opt:
     if len(a) > 0:
       browser = a
     browsing = True
+  elif o == '-r':
+    refresh = int(a)
 
-ok = False
-for filename in args:
-  if readFile(filename):
-    ok = True
-if ok:
-  if filename == "-":
-    filename = "stdin"
-  buildOutput(filename)
-  if browsing:
-    os.system(browser + " " + filename + ".html")
-else:
-  usage()
-  sys.exit(1)
+start = True
+while start or refresh > 0:
+  ok = False
+  for filename in args:
+    if readFile(filename):
+      ok = True
+  if ok:
+    if filename == "-":
+      filename = "stdin"
+    buildOutput(filename)
+    if browsing and start:
+      os.system(browser + " " + filename + ".html")
+  else:
+    usage()
+    sys.exit(1)
+  if refresh > 0:
+    time.sleep(refresh)
+  else:
+    break
+  start = False
+  data = { }
+  gdata = { 'write': { }, 'read': { } }
 
 ## @}
