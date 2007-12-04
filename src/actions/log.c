@@ -29,7 +29,8 @@ static bool ActionLog_argument(const char** from, void* dest, const void* constr
   if (Parse_word(from, &data[1].str, NULL)) {
     data[0].p = NULL;
     if (strcmp(data[1].str, "-") == 0) {
-      data[0].p = stderr;
+      free(data[1].str);
+      data[1].str = NULL;
     }
     pthread_mutex_init(&data[2].mtx, NULL);
     return true;
@@ -43,7 +44,9 @@ bool ActionLog_perform(int pos, ActionData* data, SocketInfo* si,
 
   pthread_mutex_lock(&data[2].mtx);
   file = (FILE*)data[0].p;
-  if (file == NULL) {
+  if (data[1].str == NULL) {
+    file = stderr;
+  } else if (file == NULL) {
     char fname[FILENAME_MAX + 1];
     fname[FILENAME_MAX] = '\0';
     if (snprintf(fname, FILENAME_MAX, "%s.%d", data[1].str, getpid()) > 0) {
@@ -51,7 +54,9 @@ bool ActionLog_perform(int pos, ActionData* data, SocketInfo* si,
     }
     if (data[0].p == NULL) {
       (void)Action_error("Can't open log file, fallback to stderr");
-      data[0].p = file = stderr;
+      free(data[1].str);
+      data[1].str = NULL;
+      file = stderr;
     }
   }
 

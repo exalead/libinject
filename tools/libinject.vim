@@ -8,7 +8,7 @@ syn keyword ruleTransport pipe ip tcp udp port any dns me command connect contai
 syn keyword ruleNext continue goto next stop exec contained
 syn match   ruleDo "do\(-once\(-per-\(call\|socket\)\)\?\)\?" contained
 syn keyword ruleCond matched unmatched before after between never always cycle prob contained
-syn keyword ruleAction skip echo syscall hang remove dump log truncate contained
+syn keyword ruleAction nop echo syscall hang remove dump log truncate split contained
 syn match ruleAction "\(cancel-syscall\|local-hang\|remote-hang\|mark-done\)" contained
 syn keyword ruleBool true false contained
 syn match ruleLine "-\?[0-9]\+" contained
