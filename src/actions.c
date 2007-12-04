@@ -84,6 +84,11 @@ struct Action {
   enum ActionMode        mode;       /**< 'Do'-Mode. */
   struct ActionTask      task;       /**< The task to execute. */
   struct ActionGoto      next;       /**< Next action to execute. */
+
+  int             accessors; /**< Number of processing using this action. */
+  bool            emptying;  /**< Do not allow more accessors. */
+  pthread_mutex_t mtx;       /**< Mutex to protect the number of accessors. */
+  pthread_cond_t  cond;      /**< Condition for waiting for accessor. */
 };
 
 static bool Action_parse_host(const char** from, void* dest, const void* constraint) {
@@ -322,6 +327,10 @@ Action* Action_init(const char* instruction) {
     free(action);
     return NULL;
   }
+  action->accessors = 0;
+  action->emptying  = false;
+  pthread_mutex_init(&action->mtx, NULL);
+  pthread_cond_init(&action->cond, NULL);
   return action;
 }
 
@@ -335,6 +344,8 @@ void Action_destroy(Action* action) {
   if (Action(action).close) {
     Action(action).close(action->task.data);
   }
+  pthread_mutex_destroy(&action->mtx);
+  pthread_cond_destroy(&action->cond);
   free(action);
 }
 
@@ -479,6 +490,35 @@ bool Action_error(const char* message) {
   if (mt) {                                                                   \
     pthread_rwlock_unlock(&queue->lock);                                      \
   }
+#define LOCK_ACTION(action)                                                   \
+  if (mt) {                                                                   \
+    pthread_mutex_lock(&action->mtx);                                         \
+    if (action->emptying) {                                                   \
+      pthread_mutex_unlock(&action->mtx);                                     \
+      action = NULL;                                                          \
+    } else {                                                                  \
+      ++(action->accessors);                                                  \
+      pthread_mutex_unlock(&action->mtx);                                     \
+    }                                                                         \
+  }
+#define UNLOCK_ACTION(action)                                                 \
+  pthread_mutex_lock(&action->mtx);                                           \
+  --(action->accessors);                                                      \
+  if (action->accessors == 0 && action->emptying) {                           \
+    pthread_cond_signal(&action->cond);                                       \
+  }                                                                           \
+  pthread_mutex_unlock(&action->mtx);
+#define EMPTY_ACTION(action)                                                  \
+  if (mt) {                                                                   \
+    pthread_mutex_lock(&action->mtx);                                         \
+    RELEASE                                                                   \
+    action->emptying = true;                                                  \
+    while (action->accessors > 0) {                                           \
+      pthread_cond_wait(&action->cond, &action->mtx);                         \
+    }                                                                         \
+    ACQUIRE_WRITE                                                             \
+    pthread_mutex_unlock(&action->mtx);                                       \
+  }
 
 /** An action queue.
  */
@@ -524,6 +564,9 @@ bool ActionQueue_put(ActionQueue* queue, const char* instruction, bool replace, 
 
   ACQUIRE_WRITE
   if (queue->queue[action->pos] == NULL || replace) {
+    if (queue->queue[action->pos]) {
+      EMPTY_ACTION(queue->queue[action->pos]);
+    }
     Action_destroy(queue->queue[action->pos]);
     queue->queue[action->pos] = action;
     action->queue             = queue;
@@ -542,6 +585,7 @@ Action* ActionQueue_get(ActionQueue* queue, off_t pos, bool mt) {
     Action* action;
     ACQUIRE_READ
     action = queue->queue[pos];
+    LOCK_ACTION(action);
     RELEASE
     return action;
   }
@@ -555,6 +599,7 @@ Action* ActionQueue_getFrom(ActionQueue* queue, off_t pos, bool mt) {
   for (i = pos ; i < (off_t)queue->capacity ; ++i) {
     if (queue->queue[i]) {
       action = queue->queue[i];
+      LOCK_ACTION(action)
       break;
     }
   }
@@ -571,6 +616,7 @@ Action* ActionQueue_getMatch(ActionQueue* queue, SocketInfo* si, SocketInfoDirec
   for (i = pos ; i < (off_t)queue->capacity ; ++i) {
     if (queue->queue[i] && Action_match(queue->queue[i], si, direction, matched)) {
       action = queue->queue[i];
+      LOCK_ACTION(action)
       break;
     }
   }
@@ -631,10 +677,12 @@ ssize_t ActionQueue_process(ActionQueue* queue, SocketInfo* si,
     Action* next = NULL;
     if ((action->mode == AM_OncePerCall && LigHT_contains(state.calledLines, action->pos, false))
         || (action->mode == AM_OncePerSocket && LigHT_contains(socketState->calledLines, action->pos, true))) {
+      UNLOCK_ACTION(action)
       action = ActionQueue_getMatch(queue, si, direction, true, action->pos + 1, true);
       continue;
     }
     if (!Action_process(action, si, &state) || socketState->hanging) {
+      UNLOCK_ACTION(action)
       break;
     }
     (void)LigHT_put(state.calledLines, action->pos, (void*)"OK", true, false);
@@ -658,6 +706,7 @@ ssize_t ActionQueue_process(ActionQueue* queue, SocketInfo* si,
     if (action->mode == AM_Once) {
       ActionQueue_remove(queue, action->pos, true);
     }
+    UNLOCK_ACTION(action)
     action = next;
   }
   LigHT_destroy(state.calledLines);
@@ -673,6 +722,7 @@ ssize_t ActionQueue_process(ActionQueue* queue, SocketInfo* si,
 
 void ActionQueue_remove(ActionQueue* queue, off_t pos, bool mt) {
   ACQUIRE_WRITE
+  EMPTY_ACTION(queue->queue[pos])
   Action_destroy(queue->queue[pos]);
   queue->queue[pos] = NULL;
   RELEASE

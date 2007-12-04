@@ -89,7 +89,7 @@ bool ActionLog_perform(int pos, ActionData* data, SocketInfo* si,
 }
 
 static void ActionLog_write(char** buffer,  ActionData* data) {
-  *buffer += sprintf(*buffer, "log %s ", data[1].str);
+  *buffer += sprintf(*buffer, "log %s ", data[1].str ? data[1].str : "-");
 }
 
 static void ActionLog_close(ActionData* data) {
