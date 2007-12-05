@@ -18,6 +18,11 @@
 /* @@TYPE@@   Replay
  * @@DOC@@    <b>replay [file]</b> The file must be a dump trace (produced using
  * @@DOC@@    the dump command). It's read to feed read/write actions.
+ * @@DOC@@
+ * @@DOC@@    If you want to replay the dump at the other hand of a connection
+ * @@DOC@@    (eg: you dumped the server and want to inject the result in the client)
+ * @@DOC@@    you can use the -r option of injecthexdump. @sa ReadDump
+ * @@DOC@@
  * @@DOC@@    WARNING: you should not use the same instance of this action for
  * @@DOC@@    both reading and writing.
  */

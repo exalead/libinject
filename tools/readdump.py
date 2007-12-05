@@ -13,6 +13,8 @@
 # - '-h' show the usage instructions
 # - '-s' switch the simplified mode, without data dump. In this mode, only the
 #        action description will be printed.
+# - '-r file' read the dump and write it in the given file after inversing directions
+#        (writing -> reading, reading -> writing)
 #
 # You can generate a graph of network activity using injecthexdump and injectgraph:
 # <pre>injecthexdump -s logfile | injectgraph -</pre>
@@ -24,6 +26,7 @@ import os, sys, getopt
 from struct import *
 from array import *
 
+revert     = None
 simplified = False
 
 def showEntry(time, type, proto, lport, a1, a2, a3, a4, port, success, length, data):
@@ -80,34 +83,44 @@ def showEntry(time, type, proto, lport, a1, a2, a3, a4, port, success, length, d
   return True
 
 def readEntry(file):
-  """Read an entry from the file and pipe it to showEntry
+  """Read an entry from the file
 
   Parse a file and extract data, the gives these data to readEntry to be displaid.
   """
-  try:
-    str = file.read(19)
-    time, type, proto, lport, a1, a2, a3, a4, port, success = unpack('QbbHBBBBHb', str)
-  except:
-    return False
+  str = file.read(19)
+  time, type, proto, lport, a1, a2, a3, a4, port, success = unpack('QbbHBBBBHb', str)
   len = 0
   data = None
   if ( type != 4 and type != 8 ) or success == -1: # not connection, so w
-    len = file.read(4)
-    len = unpack('i', len)[0]
-  if len > 0 and success != -1:
+    length = file.read(4)
+    length = unpack('i', length)[0]
+  if length > 0 and success != -1:
     data = array('B')
-    data.fromfile(file, len)
+    data.fromfile(file, length)
     data = data.tolist()
-  return showEntry(time, type, proto, lport, a1, a2, a3, a4, port, success, len, data)
+  return (time, type, proto, lport, a1, a2, a3, a4, port, success, length, data)
+
+def writeEntry(file, time, type, proto, lport, a1, a2, a3, a4, port, success, length, data):
+  """Write a binary entry to a file"""
+  str = pack('QbbHBBBBHb', time, type, proto, lport, a1, a2, a3, a4, port, success)
+  if ( type != 4 and type != 8 ) or success == -1:
+    str += pack('i', length)
+  file.write(str)
+  if data != None:
+    a = array('B')
+    a.fromlist(data)
+    a.tofile(file)
+  return True
 
 def usage():
   """Show usage instructions"""
-  print "Command:", sys.argv[0], "[-hs] file"
+  print "Command:", sys.argv[0], "[-hs] [-r dest] file"
   print "  -h: show this help"
   print "  -s: simplified output (without packet content)"
+  print "  -r dest: revert data direction and write the result in dest"
 
 try:
-  opt, args = getopt.getopt(sys.argv[1:], 'sh')
+  opt, args = getopt.getopt(sys.argv[1:], 'shr:')
 except:
   usage()
   sys.exit(1)
@@ -118,13 +131,29 @@ for o, a in opt:
     sys.exit(0)
   elif o == '-s':
     simplified = True
+  elif o == '-r':
+    revert = a
 try:
   file = open(args[0], "r")
 except:
   usage()
   sys.exit(1)
 
-while readEntry(file):
-  pass
+if revert != None:
+  dest = open(revert, "w")
+
+while True:
+  try:
+    time, type, proto, lport, a1, a2, a3, a4, port, success, length, data = readEntry(file)
+  except:
+    break
+  if revert == None:
+    showEntry(time, type, proto, lport, a1, a2, a3, a4, port, success, length, data)
+  else:
+    if type == 1:
+      type = 2
+    elif type == 2:
+      type = 1
+    writeEntry(dest, time, type, proto, lport, a1, a2, a3, a4, port, success, length, data)
 
 ## @}
