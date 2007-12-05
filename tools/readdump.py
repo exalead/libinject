@@ -88,7 +88,7 @@ def readEntry(file):
   Parse a file and extract data, the gives these data to readEntry to be displaid.
   """
   str = file.read(19)
-  time, type, proto, lport, a1, a2, a3, a4, port, success = unpack('QbbHBBBBHb', str)
+  time, type, proto, lport, a1, a2, a3, a4, port, success = unpack('=QbbHBBBBHb', str)
   len = 0
   data = None
   if ( type != 4 and type != 8 ) or success == -1: # not connection, so w
@@ -102,7 +102,7 @@ def readEntry(file):
 
 def writeEntry(file, time, type, proto, lport, a1, a2, a3, a4, port, success, length, data):
   """Write a binary entry to a file"""
-  str = pack('QbbHBBBBHb', time, type, proto, lport, a1, a2, a3, a4, port, success)
+  str = pack('=QbbHBBBBHb', time, type, proto, lport, a1, a2, a3, a4, port, success)
   if ( type != 4 and type != 8 ) or success == -1:
     str += pack('i', length)
   file.write(str)

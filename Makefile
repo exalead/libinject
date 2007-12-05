@@ -7,7 +7,7 @@ vimdir = $(HOME)/.vim/syntax/
 
 SUBDIRS=src test testlib
 CLEANSUBDIRS=$(addprefix clean-,$(SUBDIRS))
-
+SCRIPTS=$(addprefix $(bindir)/inject,graph hexdump forgedump)
 
 all: src
 
@@ -30,7 +30,7 @@ clean-doc:
 	-rm -rf doc
 
 install: install-bin install-lib
-install-bin: $(bindir)/inject $(bindir)/injectgraph $(bindir)/injecthexdump
+install-bin: $(bindir)/inject $(SCRIPTS)
 install-lib: $(libdir)/libinject.so
 
 $(bindir)/inject: tools/inject.in $(bindir)
@@ -41,6 +41,9 @@ $(bindir)/injectgraph: tools/graphlog.py $(bindir)
 	cp $< $@
 
 $(bindir)/injecthexdump: tools/readdump.py $(bindir)
+	cp $< $@
+
+$(bindir)/injectforgedump: tools/forgedump.py $(bindir)
 	cp $< $@
 
 $(libdir)/libinject.so: libinject.so $(libdir)

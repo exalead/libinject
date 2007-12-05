@@ -44,6 +44,12 @@ Display content of the output of the 'dump' action.
 > injecthexdump -h
 
 
+* injectforgedump
+Build a dump for usage with the 'replay' action
+
+> injectforgedump -h
+
+
 You can get information about ruleset syntax by generating doxygen documentation :
 > make doc
 
