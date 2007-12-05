@@ -2,7 +2,7 @@
  *
  *                               The NG Project
  *
- *                         Echo command implementation
+ *                         Log command implementation
  *
  *                       Copyright (c) 2007 Exalead S.A.
  *

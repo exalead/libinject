@@ -26,7 +26,7 @@
  */
 
 /** Start waiting for user commands.
-< */
+ */
 bool Runtime_start(Config* config);
 
 /** @} */

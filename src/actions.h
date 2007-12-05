@@ -92,7 +92,7 @@ void Action_destroy(Action* action);
  *
  * @param action The action.
  * @param si     The socket to test.
- * @param direction Data direction (Reading|Writing).
+ * @param direction Data direction.
  * @param matched True if the socket already matched rule.
  * @return true if the socket matches the rule.
  */

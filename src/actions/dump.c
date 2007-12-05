@@ -2,7 +2,7 @@
  *
  *                               The NG Project
  *
- *                         Echo command implementation
+ *                         Dump command implementation
  *
  *                       Copyright (c) 2007 Exalead S.A.
  *

@@ -2,7 +2,7 @@
  *
  *                               The NG Project
  *
- *                   Cancel-Syscall command implementation
+ *                         Drop command implementation
  *
  *                       Copyright (c) 2007 Exalead S.A.
  *

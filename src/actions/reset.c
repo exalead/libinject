@@ -2,7 +2,7 @@
  *
  *                               The NG Project
  *
- *                       Syscall command implementation
+ *                        Reset command implementation
  *
  *                       Copyright (c) 2007 Exalead S.A.
  *
