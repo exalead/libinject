@@ -23,7 +23,18 @@ static inline const char* getprogname(void) {
   return __progname;
 }
 #elif defined(__sun)
-# define getprogname getexecname
+static inline const char* getprogname(void) {
+  static const char* progname = NULL;
+  if (progname == NULL) {
+    const char* pos;
+    progname = getexecname();
+    pos = strrchr(progname, '/');
+    if (pos != NULL) {
+      progname = pos + 1;
+    }
+  }
+  return progname;
+}
 #endif
 
 /** Section of the configuration file.
