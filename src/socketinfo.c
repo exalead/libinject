@@ -87,7 +87,7 @@ SocketInfo* SocketInfo_init(int fd) {
   return SocketInfo_setup(si, fd, err);
 }
 
-SocketInfo* SocketInfo_initLight(int fd, __CONST_SOCKADDR_ARG addr, socklen_t addrlen) {
+SocketInfo* SocketInfo_initLight(int fd, const struct sockaddr* addr, socklen_t addrlen) {
   SocketInfo* si;
   int err = errno;
   struct stat s;

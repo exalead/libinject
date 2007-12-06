@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
-#include <bits/wordsize.h>
 
 #include "../actionsdk.h"
 
@@ -60,28 +59,21 @@ bool ActionLog_perform(int pos, ActionData* data, SocketInfo* si,
     }
   }
 
-#if __WORDSIZE == 32
-#define TIME "[ts %llu] "
-#else
-#define TIME "[ts %lu] "
-#endif
-
+  fprintf(file, "[ts %llu] [line %d] ", (long long unsigned int)getMSecTime(), pos);
   if (state->direction == Reading) {
-    fprintf(file, TIME "[line %d] read %s:%d:[%d.%d.%d.%d]:%d length=%zu\n",
-                  getMSecTime(), pos, si->proto & AP_TCP ? "tcp" : "udp", si->local.port,
+    fprintf(file, "read %s:%d:[%d.%d.%d.%d]:%d length=%zu\n",
+                  si->proto & AP_TCP ? "tcp" : "udp", si->local.port,
                   SHOW_ADDR(si->remote.addr), si->remote.port, READ_BUFFER_LENGTH(state));
   } else if (state->direction == Writing) {
-    fprintf(file, TIME "[line %d] write %s:%d:[%d.%d.%d.%d]:%d length=%zu\n",
-                  getMSecTime(), pos, si->proto & AP_TCP ? "tcp" : "udp", si->local.port,
+    fprintf(file, "write %s:%d:[%d.%d.%d.%d]:%d length=%zu\n",
+                  si->proto & AP_TCP ? "tcp" : "udp", si->local.port,
                   SHOW_ADDR(si->remote.addr), si->remote.port, READ_BUFFER_LENGTH(state));
   } else {
-    fprintf(file, TIME "[line %d] %s %s:%d:[%d.%d.%d.%d]:%d\n",
-                  getMSecTime(), pos, state->direction == Connecting ? "connect" : "close",
+    fprintf(file, "%s %s:%d:[%d.%d.%d.%d]:%d\n",
+                  state->direction == Connecting ? "connect" : "close",
                   si->proto & AP_TCP ? "tcp" : "udp", si->local.port,
                   SHOW_ADDR(si->remote.addr), si->remote.port);
   }
-
-#undef TIME
 
   fflush(file);
   pthread_mutex_unlock(&data[2].mtx);

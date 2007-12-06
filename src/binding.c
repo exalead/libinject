@@ -8,7 +8,7 @@
  *
  *****************************************************************************/
 
-#define _GNU_SOURCE
+#define _GNU_SOURCE /* Needed for RTLD_NEXT on linux systems */
 
 #include <dlfcn.h>
 #include <sys/socket.h>
@@ -23,6 +23,10 @@
 #include "actions.h"
 #include "conffile.h"
 #include "runtime.h"
+
+#ifndef RTLD_NEXT
+# error "RTLD_NEXT not defined on your system"
+#endif
 
 #define DEFAULT_CONFIG "libinject.rules"
 
@@ -40,16 +44,16 @@ static LigHT* sockets = NULL;
 typedef ssize_t (readfun)(int fd, void* buf, size_t len);
 typedef ssize_t (recvfun)(int fd, void* buf, size_t len, int flags);
 typedef ssize_t (recvfromfun)(int fd, void* __restrict buf, size_t n, int flags,
-                               __SOCKADDR_ARG addr, socklen_t* __restrict addr_len);
+                               struct sockaddr* __restrict addr, socklen_t* __restrict addr_len);
 typedef ssize_t (recvmsgfun)(int fd, struct msghdr* message, int flags);
 
 typedef ssize_t (writefun)(int fd, __const void* buf, size_t n);
 typedef ssize_t (sendfun)(int fd, __const void* buf, size_t n, int flags);
 typedef ssize_t (sendtofun)(int fd, __const void* buf, size_t n, int flags,
-                            __CONST_SOCKADDR_ARG addr, socklen_t addr_len);
+                            const struct sockaddr* addr, socklen_t addr_len);
 typedef ssize_t (sendmsgfun)(int fd, __const struct msghdr* message, int flags);
 
-typedef int (connectfun)(int fd, __CONST_SOCKADDR_ARG addr, socklen_t addrlen);
+typedef int (connectfun)(int fd, const struct sockaddr* addr, socklen_t addrlen);
 typedef ssize_t (closefun)(int fd);
 
 static readfun*     sysread;
@@ -73,14 +77,14 @@ static Config* config = NULL;
 /** Data to pass when performing syscalls that fetch addr.
  */
 struct AddrData {
-   __SOCKADDR_ARG addr; /**< Source address. */
+   struct sockaddr* __restrict addr; /**< Source address. */
    socklen_t* addr_len; /**< Length of the source address. */
 };
 
 /** Data to pass when performing syscalls that use addr.
  */
 struct ConstAddrData {
-   __CONST_SOCKADDR_ARG addr; /**< Destination address. */
+   const struct sockaddr* addr; /**< Destination address. */
    socklen_t addr_len;        /**< Destination address length. */
 };
 
@@ -179,7 +183,7 @@ static ssize_t recvfromCB(int fd, void* buf, size_t len, int flags, void* data) 
 }
 
 ssize_t recvfrom(int fd, void* __restrict buf, size_t len, int flags,
-                 __SOCKADDR_ARG addr, socklen_t* __restrict addr_len) {
+                 struct sockaddr* __restrict addr, socklen_t* __restrict addr_len) {
   SocketInfo* si;
   ssize_t ret;
   struct AddrData d;
@@ -255,7 +259,7 @@ static ssize_t sendtoCB(int fd, void* buf, size_t len, int flags, void* data) {
 }
 
 ssize_t sendto(int fd, __const void* buf, size_t n, int flags,
-               __CONST_SOCKADDR_ARG addr, socklen_t addr_len) {
+               const struct sockaddr* addr, socklen_t addr_len) {
   SocketInfo* si;
   ssize_t ret;
   struct ConstAddrData d;
@@ -286,7 +290,7 @@ static ssize_t connectCB(int fd, void* buf, size_t len, int flags, void* data) {
   return sysconnect(fd, d->addr, d->addr_len);
 }
 
-int connect(int fd, __CONST_SOCKADDR_ARG addr, socklen_t addrlen) {
+int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {
   SocketInfo* si;
   struct ConstAddrData d;
   int ret;

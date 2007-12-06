@@ -8,7 +8,6 @@
  *
  *****************************************************************************/
 
-#define _GNU_SOURCE /* For strchrnul */
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
@@ -166,7 +165,7 @@ bool Parse_int(const char** from, void* dest, const void* constraint) {
 }
 
 static inline bool Parse_until(const char** from, void* dest, const void* constraint, const char* chars) {
-  char* pos = NULL;
+  const char* pos = NULL;
   char** dstring = (char**)dest;
   const char* cstring = (const char*)constraint;
   size_t len = 0;
@@ -182,8 +181,10 @@ static inline bool Parse_until(const char** from, void* dest, const void* constr
     }
   }
   do {
-    char* tmp;
-    tmp = strchrnul((*from) + len, *chars);
+    const char* tmp = (*from) + len;
+    while (*tmp != *chars && *tmp != '\0') {
+      ++tmp;
+    }
     if (pos == NULL || tmp < pos) {
       pos = tmp;
     }

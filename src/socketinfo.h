@@ -111,7 +111,7 @@ SocketInfo* SocketInfo_init(int fd);
  * @param addrlen The length of the addr structure.
  * @return A new SocketInfo structure or NULL if the fd is not a valid socket.
  */
-SocketInfo* SocketInfo_initLight(int fd, __CONST_SOCKADDR_ARG addr, socklen_t addrlen);
+SocketInfo* SocketInfo_initLight(int fd, const struct sockaddr* addr, socklen_t addrlen);
 
 /** Free the content of a socket info.
  *

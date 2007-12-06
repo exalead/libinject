@@ -510,14 +510,14 @@ bool Action_error(const char* message) {
   pthread_mutex_unlock(&action->mtx);
 #define EMPTY_ACTION(action)                                                  \
   if (mt) {                                                                   \
-    pthread_mutex_lock(&action->mtx);                                         \
     RELEASE                                                                   \
+    pthread_mutex_lock(&action->mtx);                                         \
     action->emptying = true;                                                  \
     while (action->accessors > 0) {                                           \
       pthread_cond_wait(&action->cond, &action->mtx);                         \
     }                                                                         \
-    ACQUIRE_WRITE                                                             \
     pthread_mutex_unlock(&action->mtx);                                       \
+    ACQUIRE_WRITE                                                             \
   }
 
 /** An action queue.

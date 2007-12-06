@@ -8,17 +8,17 @@
  *
  *****************************************************************************/
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <sys/types.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+//#include <errno.h>
 
 #include "parser.h"
 #include "conffile.h"
 
+extern const char* __progname;
 
 /** Section of the configuration file.
  */
@@ -142,8 +142,7 @@ Config* Config_init(const char* file) {
   }
 
   /* Is the config valid for these program ? */
-  if (config->command && strcmp(config->command, program_invocation_name)
-      && strcmp(config->command, program_invocation_short_name)) {
+  if (config->command && strcmp(config->command, __progname)) {
     ok = false;
   }
 
