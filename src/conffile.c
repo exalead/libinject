@@ -13,12 +13,18 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <errno.h>
 
 #include "parser.h"
 #include "conffile.h"
 
+#if defined(__linux)
 extern const char* __progname;
+static inline const char* getprogname(void) {
+  return __progname;
+}
+#elif defined(__sun)
+# define getprogname getexecname
+#endif
 
 /** Section of the configuration file.
  */
@@ -142,7 +148,7 @@ Config* Config_init(const char* file) {
   }
 
   /* Is the config valid for these program ? */
-  if (config->command && strcmp(config->command, __progname)) {
+  if (config->command && strcmp(config->command, getprogname())) {
     ok = false;
   }
 

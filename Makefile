@@ -13,7 +13,7 @@ all: src
 
 test: src testlib
 $(SUBDIRS):
-	make -C $@ mode=$(mode) bits=$(bits)
+	cd $@ && gmake mode=$(mode) bits=$(bits)
 
 doc:
 	doxygen Doxyfile > /dev/null
@@ -24,7 +24,7 @@ clean: $(CLEANSUBDIRS)
 	-rm *.so
 
 $(CLEANSUBDIRS): clean-%:
-	make -C $* clean
+	cd $* && gmake clean
 
 clean-doc:
 	-rm -rf doc

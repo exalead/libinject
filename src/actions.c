@@ -133,7 +133,7 @@ static bool Action_parse_host(const char** from, void* dest, const void* constra
   }
   if (ok && host->type == AH_Address) {
     struct hostent* hostaddr = NULL;
-    hostaddr = gethostbyname2(addr, AF_INET);
+    hostaddr = gethostbyname(addr);
     free(addr);
     if (hostaddr == NULL) {
       return false;

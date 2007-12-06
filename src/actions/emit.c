@@ -24,13 +24,56 @@ static Parse_enumData signals[] = {
   { "SIGALRM", SIGALRM }, { "SIGTERM", SIGTERM }, { "SIGUSR1", SIGUSR1 },
   { "SIGUSR2", SIGUSR2 }, { "SIGCHLD", SIGCHLD }, { "SIGCONT", SIGCONT },
   { "SIGSTOP", SIGSTOP }, { "SIGTSTP", SIGTSTP }, { "SIGTTIN", SIGTTIN },
-  { "SIGTTOU", SIGTTOU },
-  { "SIGBUS",  SIGBUS },  { "SIGPOLL", SIGPOLL }, { "SIGPROF", SIGPROF },
-  { "SIGSYS",  SIGSYS },  { "SIGTRAP", SIGTRAP }, { "SIGURG",  SIGURG },
-  { "SIGVTALRM", SIGVTALRM }, { "SIGXCPU", SIGXCPU }, { "SIGXFSZ", SIGXFSZ },
-  { "SIOT",    SIGIOT },  { "SIGSTKFLT", SIGSTKFLT }, { "SIGIO",   SIGIO },
-  { "SIGCLD",  SIGCLD },  { "SIGPWR",  SIGPWR },  { "SIGWINCH", SIGWINCH },
-  { "SIGUNUSED", SIGUNUSED } };
+  { "SIGTTOU", SIGTTOU }
+#ifdef SIGBUS
+  , { "SIGBUS", SIGBUS }
+#endif
+#ifdef SIGPOLL
+    , { "SIGPOLL", SIGPOLL }
+#endif
+#ifdef SIGPROF
+    , { "SIGPROF", SIGPROF }
+#endif
+#ifdef SIGSYS
+    , { "SIGSYS", SIGSYS }
+#endif
+#ifdef SIGTRAP
+    , { "SIGTRAP", SIGTRAP }
+#endif
+#ifdef SIGURG
+    , { "SIGURG", SIGURG }
+#endif
+#ifdef SIGVTALRM
+    , { "SIGVTALRM", SIGVTALRM }
+#endif
+#ifdef SIGXCPU
+    , { "SIGXCPU", SIGXCPU }
+#endif
+#ifdef SIGXFSZ
+    , { "SIGXFSZ", SIGXFSZ }
+#endif
+#ifdef SIGIOT
+    , { "SIGIOT", SIGIOT }
+#endif
+#ifdef SIGSTKFLT
+    , { "SIGSTKFLT", SIGSTKFLT }
+#endif
+#ifdef SIGIO
+    , { "SIGIO", SIGIO }
+#endif
+#ifdef SIGCLD
+    , { "SIGCLD", SIGCLD }
+#endif
+#ifdef SIGPWR
+    , { "SIGPWR", SIGPWR }
+#endif
+#ifdef SIGWINCH
+    , { "SIGWINCH", SIGWINCH }
+#endif
+#ifdef SIGUNUSED
+    , { "SIGUNUSED", SIGUNUSED }
+#endif
+};
 
 static bool ActionEmit_argument(const char** from, void* dest, const void* constraint) {
   union ActionData* data = (union ActionData*)dest;

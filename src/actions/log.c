@@ -48,7 +48,7 @@ bool ActionLog_perform(int pos, ActionData* data, SocketInfo* si,
   } else if (file == NULL) {
     char fname[FILENAME_MAX + 1];
     fname[FILENAME_MAX] = '\0';
-    if (snprintf(fname, FILENAME_MAX, "%s.%d", data[1].str, getpid()) > 0) {
+    if (snprintf(fname, FILENAME_MAX, "%s.%d", data[1].str, (int)getpid()) > 0) {
       data[0].p = file = fopen(fname, "w");
     }
     if (data[0].p == NULL) {

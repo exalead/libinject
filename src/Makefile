@@ -22,10 +22,10 @@ runtime.o: runtime.c runtime.h conffile.h Makefile
 
 conditions actions: %: actionlist.h conditionlist.h
 $(SUBDIRS):
-	make -C $@ mode=$(mode) bits=$(bits)
+	cd $@ && gmake mode=$(mode) bits=$(bits)
 
 actionlist.h conditionlist.h: %: .%
-	@[ "$$(md5sum $@ | awk '{ print $$1 ; }')" = "$$(md5sum .$@ |  awk '{ print $$1 ; }')" ] || cp .$@ $@
+	@[ "$$(openssl md5 $@ | cut -d' ' -f 2)" = "$$(openssl md5 .$@ | cut -d' ' -f 2)" ] || cp .$@ $@
 
 .actionlist.h: actions/*.c ../tools/buildActions.sh Makefile
 	../tools/buildActions.sh actions ActionTask > $@
@@ -39,6 +39,6 @@ clean: $(CLEANSUBDIRS)
 	-rm *.o
 
 $(CLEANSUBDIRS): clean-%:
-	make -C $* clean
+	cd $* && gmake clean
 
 .PHONY: all $(SUBDIRS) clean $(CLEANSUBDIRS)
