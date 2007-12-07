@@ -1,14 +1,15 @@
 include ../Makefile.inc
-LDFLAGS=-shared
+LDFLAGS=$(oslibflags)
 LIBS=-ldl -lpthread
 
 SUBDIRS=actions conditions
 CLEANSUBDIRS=$(addprefix clean-,$(SUBDIRS))
 OBJECTS=binding.o ligHT.o socketinfo.o parser.o actions.o conffile.o runtime.o
+TARGET=../libinject.$(if $(oslibext),$(oslibext),so)
 
-all: $(SUBDIRS) ../libinject.so
+all: $(SUBDIRS) $(TARGET)
 
-../libinject.so: $(OBJECTS) actions/*.c conditions/*.c Makefile
+$(TARGET): $(OBJECTS) actions/*.c conditions/*.c Makefile
 	gcc $(CFLAGS) $(LDFLAGS) -o $@ $(LIBS) $(OBJECTS) actions/*.o conditions/*.o
 
 
@@ -22,7 +23,7 @@ runtime.o: runtime.c runtime.h conffile.h Makefile
 
 conditions actions: %: actionlist.h conditionlist.h
 $(SUBDIRS):
-	cd $@ && gmake mode=$(mode) bits=$(bits)
+	cd $@ && $(MAKE)
 
 actionlist.h conditionlist.h: %: .%
 	@[ "$$(openssl md5 $@ | cut -d' ' -f 2)" = "$$(openssl md5 .$@ | cut -d' ' -f 2)" ] || cp .$@ $@
@@ -39,6 +40,6 @@ clean: $(CLEANSUBDIRS)
 	-rm *.o
 
 $(CLEANSUBDIRS): clean-%:
-	cd $* && gmake clean
+	cd $* && $(MAKE) clean
 
 .PHONY: all $(SUBDIRS) clean $(CLEANSUBDIRS)

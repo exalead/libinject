@@ -1,5 +1,4 @@
 mode   = develop
-bits   = 64
 prefix = $(HOME)
 bindir = $(prefix)/bin
 libdir = $(prefix)/lib
@@ -13,7 +12,7 @@ all: src
 
 test: src testlib
 $(SUBDIRS):
-	cd $@ && gmake mode=$(mode) bits=$(bits)
+	cd $@ && $(MAKE)
 
 doc:
 	doxygen Doxyfile > /dev/null
@@ -21,10 +20,10 @@ doc:
 clean-all: clean clean-doc
 clean: $(CLEANSUBDIRS)
 	-rm *.o
-	-rm *.so
+	-rm *.so *.dylib
 
 $(CLEANSUBDIRS): clean-%:
-	cd $* && gmake clean
+	cd $* && $(MAKE) clean
 
 clean-doc:
 	-rm -rf doc

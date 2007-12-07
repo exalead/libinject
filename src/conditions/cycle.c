@@ -47,10 +47,10 @@ static void ActionCycle_write(char** buffer, ActionData* data) {
 
 static bool ActionCycle_match(ActionData* data, SocketInfo* si,
                               SocketInfoDirection direction, bool matched) {
-  uint64_t t;
-  t = getMSecTime() - data[3].ul;
+  uint32_t t;
+  t = (uint32_t)(uint64_t)(getMSecTime() - data[3].ul);
   t %= data[1].i + data[2].i;
-  return (t < (uint64_t)data[1].i) ? !!data[0].i : !data[0].i;
+  return (t < (uint32_t)data[1].i) ? !!data[0].i : !data[0].i;
 }
 
 void ActionCycle_register(ActionConditionDefinition* definition) {

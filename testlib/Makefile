@@ -1,12 +1,13 @@
 include ../Makefile.inc
-LDFLAGS=-shared
+LDFLAGS=$(oslibflags)
 LIBS=-ldl -lpthread
 
 OBJECTS=testlib.o
+TARGET=../libtestlib.$(if $(oslibext),$(oslibext),so)
 
-all: ../libtestlib.so
+all: $(TARGET)
 
-../libtestlib.so: $(OBJECTS) Makefile
+$(TARGET): $(OBJECTS) Makefile
 	gcc $(CFLAGS) $(LDFLAGS) -o $@ $(LIBS) $(OBJECTS)
 
 testlib.o: testlib.c testlib.h Makefile

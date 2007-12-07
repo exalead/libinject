@@ -41,7 +41,7 @@ static bool ActionAlter_perform(int pos, ActionData* data, SocketInfo* si,
   length = state->len;
   while (length > 0) {
     int batch = length > 1024 ? 1024 : length;
-    uint64_t val = rand() % (data[0].i * 2);
+    uint32_t val = rand() % (data[0].i * 2);
     val = (val * batch * 8 / 1000000);
     for (i = 0 ; i < (int)val ; ++i) {
       int sub = rand() % (8 * batch);
