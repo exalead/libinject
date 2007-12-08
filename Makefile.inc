@@ -7,7 +7,7 @@ osbinflags=-lsocket -lnsl -lrt
 oslibflags=-shared
 else
 ifeq ($(os),Darwin)
-oslibflags=-dynamiclib -flat_namespace -nostdlib -fno_common
+oslibflags=-dynamiclib -flat_namespace -multiply_defined suppress
 oslibext=dylib
 else
 oslibflags=-shared
