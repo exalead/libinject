@@ -8,6 +8,8 @@ SUBDIRS=src test testlib
 CLEANSUBDIRS=$(addprefix clean-,$(SUBDIRS))
 SCRIPTS=$(addprefix $(bindir)/inject,graph hexdump forgedump)
 
+include Makefile.inc
+
 all: src
 
 test: src testlib
@@ -30,11 +32,19 @@ clean-doc:
 
 install: install-bin install-lib
 install-bin: $(bindir)/inject $(SCRIPTS)
-install-lib: $(libdir)/libinject.so
+install-lib: $(libdir)/libinject.$(oslibext)
 
+ifeq ($(os),Darwin)
 $(bindir)/inject: tools/inject.in $(bindir)
-	sed -e 's;@@LIBDIR@@;$(libdir);g' $< > $@
+	sed -e 's;@@LIBDIR@@;$(libdir);g'	-e 's;@@LIBEXT@@;$(oslibext);g'					   \
+			-e 's;LD_PRELOAD; DYLD_FORCE_FLAT_NAMESPACE=1  DYLD_INSERT_LIBRARIES;g'	 \
+			$< > $@
 	chmod +x $@
+else
+$(bindir)/inject: tools/inject.in $(bindir)
+	sed -e 's;@@LIBDIR@@;$(libdir);g'  -e 's;@@LIBEXT@@;$(oslibext);g' $< > $@
+	chmod +x $@
+endif
 
 $(bindir)/injectgraph: tools/graphlog.py $(bindir)
 	cp $< $@
@@ -45,7 +55,7 @@ $(bindir)/injecthexdump: tools/readdump.py $(bindir)
 $(bindir)/injectforgedump: tools/forgedump.py $(bindir)
 	cp $< $@
 
-$(libdir)/libinject.so: libinject.so $(libdir)
+$(libdir)/libinject.$(oslibext): libinject.$(oslibext) $(libdir)
 	cp $< $@
 
 install-vim-syntax: $(vimdir)/libinject.vim

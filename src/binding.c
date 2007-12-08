@@ -56,21 +56,25 @@ typedef ssize_t (sendmsgfun)(int fd, __const struct msghdr* message, int flags);
 typedef int (connectfun)(int fd, const struct sockaddr* addr, socklen_t addrlen);
 typedef ssize_t (closefun)(int fd);
 
-static readfun*     sysread;
-static recvfun*     sysrecv;
-static recvfromfun* sysrecvfrom;
-static recvmsgfun*  sysrecvmsg;
+static readfun*     sysread = NULL;
+static recvfun*     sysrecv = NULL;
+static recvfromfun* sysrecvfrom = NULL;
+static recvmsgfun*  sysrecvmsg = NULL;
 
-static writefun*    syswrite;
-static sendfun*     syssend;
-static sendtofun*   syssendto;
-static sendmsgfun*  syssendmsg;
+static writefun*    syswrite = NULL;
+static sendfun*     syssend = NULL;
+static sendtofun*   syssendto = NULL;
+static sendmsgfun*  syssendmsg = NULL;
 
-static connectfun*  sysconnect;
-static closefun*    sysclose;
+static connectfun*  sysconnect = NULL;
+static closefun*    sysclose = NULL;
 
 static Config* config = NULL;
 
+#define GET_SYSCALL(call)                                                      \
+  if (sys ## call == NULL) {                                                   \
+    sys ## call = (call ## fun*)dlsym(RTLD_NEXT, # call);                      \
+  }
 
 /*** Useful stuff */
 
@@ -144,10 +148,10 @@ ssize_t read(int fd, void* buf, size_t len) {
   SocketInfo* si = NULL;
   ssize_t ret;
 
-  si = getInfos(fd);
-  if (si) {
+  if (config && (si = getInfos(fd))) {
     ret = ActionQueue_process(config->queue, si, Reading, readCB, buf, len, 0, NULL);
   } else {
+    GET_SYSCALL(read)
     ret = sysread(fd, buf, len);
   }
   RELEASE_SI
@@ -165,10 +169,10 @@ ssize_t recv(int fd, void* buf, size_t len, int flags) {
   SocketInfo* si = NULL;
   ssize_t ret;
 
-  si = getInfos(fd);
-  if (si) {
+  if (config && (si = getInfos(fd))) {
     ret = ActionQueue_process(config->queue, si, Reading, recvCB, buf, len, flags, NULL);
   } else {
+    GET_SYSCALL(recv)
     ret = sysrecv(fd, buf, len, flags);
   }
   RELEASE_SI
@@ -184,16 +188,16 @@ static ssize_t recvfromCB(int fd, void* buf, size_t len, int flags, void* data) 
 
 ssize_t recvfrom(int fd, void* __restrict buf, size_t len, int flags,
                  struct sockaddr* __restrict addr, socklen_t* __restrict addr_len) {
-  SocketInfo* si;
+  SocketInfo* si = NULL;
   ssize_t ret;
   struct AddrData d;
   d.addr     = addr;
   d.addr_len = addr_len;
 
-  si = getInfos(fd);
-  if (si) {
+  if (config && (si = getInfos(fd))) {
     ret = ActionQueue_process(config->queue, si, Reading, recvfromCB, buf, len, flags, &d);
   } else {
+    GET_SYSCALL(recvfrom)
     ret = sysrecvfrom(fd, buf, len, flags, addr, addr_len);
   }
   RELEASE_SI
@@ -216,13 +220,13 @@ static ssize_t writeCB(int fd, void* buf, size_t len, int flags, void* data) {
 }
 
 ssize_t write(int fd, __const void* buf, size_t n) {
-  SocketInfo* si;
+  SocketInfo* si = NULL;
   ssize_t ret;
 
-  si = getInfos(fd);
-  if (si) {
+  if (config && (si = getInfos(fd))) {
     ret = ActionQueue_process(config->queue, si, Writing, writeCB, (void*)buf, n, 0, NULL);
   } else {
+    GET_SYSCALL(write)
     ret = syswrite(fd, buf, n);
   }
   RELEASE_SI
@@ -237,13 +241,13 @@ static ssize_t sendCB(int fd, void* buf, size_t len, int flags, void* data) {
 }
 
 ssize_t send(int fd, __const void* buf, size_t n, int flags) {
-  SocketInfo* si;
+  SocketInfo* si = NULL;
   ssize_t ret;
 
-  si = getInfos(fd);
-  if (si) {
+  if (config && (si = getInfos(fd))) {
     ret = ActionQueue_process(config->queue, si, Writing, sendCB, (void*)buf, n, flags, NULL);
   } else {
+    GET_SYSCALL(send)
     ret = syssend(fd, buf, n, flags);
   }
   RELEASE_SI
@@ -260,16 +264,16 @@ static ssize_t sendtoCB(int fd, void* buf, size_t len, int flags, void* data) {
 
 ssize_t sendto(int fd, __const void* buf, size_t n, int flags,
                const struct sockaddr* addr, socklen_t addr_len) {
-  SocketInfo* si;
+  SocketInfo* si = NULL;
   ssize_t ret;
   struct ConstAddrData d;
   d.addr     = addr;
   d.addr_len = addr_len;
 
-  si = getInfos(fd);
-  if (si) {
+  if (config && (si = getInfos(fd))) {
     ret = ActionQueue_process(config->queue, si, Writing, sendtoCB, (void*)buf, n, flags, &d);
   } else {
+    GET_SYSCALL(sendto)
     ret = syssendto(fd, buf, n, flags, addr, addr_len);
   }
   RELEASE_SI
@@ -291,16 +295,16 @@ static ssize_t connectCB(int fd, void* buf, size_t len, int flags, void* data) {
 }
 
 int connect(int fd, const struct sockaddr* addr, socklen_t addrlen) {
-  SocketInfo* si;
+  SocketInfo* si = NULL;
   struct ConstAddrData d;
   int ret;
   d.addr     = addr;
   d.addr_len = addrlen;
 
-  si = getInfosOnConnect(fd, &d);
-  if (si) {
+  if (config && (si = getInfosOnConnect(fd, &d))) {
     ret = ActionQueue_process(config->queue, si, Connecting, connectCB, NULL, 0, 0, &d);
   } else {
+    GET_SYSCALL(connect)
     ret = sysconnect(fd, addr, addrlen);
   }
   RELEASE_SI
@@ -315,15 +319,15 @@ static ssize_t closeCB(int fd, void* buf, size_t len, int flags, void* data) {
 }
 
 int close(int fd) {
-  SocketInfo* si;
+  SocketInfo* si = NULL;
   int ret;
 
-  si = getInfos(fd);
-  if (si) {
+  if (config && (si = getInfos(fd))) {
     LigHT_remove(sockets, fd, true);
     ret = ActionQueue_process(config->queue, si, Closing, closeCB, NULL, 0, 0, NULL);
     si->toDestroy = true;
   } else {
+    GET_SYSCALL(close)
     ret = sysclose(fd);
   }
   RELEASE_SI
@@ -338,18 +342,19 @@ int close(int fd) {
 void inj_init(void) {
   srand(time(NULL));
 
-  sysread     = (readfun*)dlsym(RTLD_NEXT, "read");
-  sysrecv     = (recvfun*)dlsym(RTLD_NEXT, "recv");
-  sysrecvfrom = (recvfromfun*)dlsym(RTLD_NEXT, "recvfrom");
-  sysrecvmsg  = (recvmsgfun*)dlsym(RTLD_NEXT, "recvmsg");
+  GET_SYSCALL(read)
+  GET_SYSCALL(recv)
+  GET_SYSCALL(recvfrom)
+  GET_SYSCALL(recvmsg)
 
-  syswrite    = (writefun*)dlsym(RTLD_NEXT, "write");
-  syssend     = (sendfun*)dlsym(RTLD_NEXT, "send");
-  syssendto   = (sendtofun*)dlsym(RTLD_NEXT, "sendto");
-  syssendmsg  = (sendmsgfun*)dlsym(RTLD_NEXT, "sendmsg");
+  GET_SYSCALL(write)
+  GET_SYSCALL(send)
+  GET_SYSCALL(sendto)
+  GET_SYSCALL(sendmsg)
 
-  sysconnect  = (connectfun*)dlsym(RTLD_NEXT, "connect");
-  sysclose    = (closefun*)dlsym(RTLD_NEXT, "close");
+  GET_SYSCALL(connect)
+  GET_SYSCALL(close)
+
   ActionSet_init();
 
   if (getenv("LIBINJ_DISABLE")) {

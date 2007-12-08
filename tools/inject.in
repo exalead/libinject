@@ -1,14 +1,20 @@
-#!/bin/sh
+#!/bin/bash
 
 function usage()
 {
   echo "Error: $1" >&2
-  echo "Usage: $0 [-c|--config ruleset] -- command" >&2
+  echo "Usage: $0 [${args}] -- command" >&2
   exit
 }
 
 config="libinject.rules"
-set -- $(getopt -o 'c:' -l 'config:' -n $0 -u  -- $*)
+if getopt -T &> /dev/null ; then
+  set -- $(getopt c: $*)
+  args="-c"
+else
+  set -- $(getopt -o 'c:' -l 'config:' -n $0 -u  -- $*)
+  args="-c|--config ruleset"
+fi
 for opt ; do
   case $opt in
     "-c"|"--config") shift; config=$1; shift;;
@@ -24,4 +30,4 @@ if ! [ -f "$config" ] ; then
   usage "Can not find the ruleset file ${config}"
 fi
 
-LIBINJ_CONFIG=$config LD_PRELOAD=@@LIBDIR@@/libinject.so $*
+LIBINJ_CONFIG=$config LD_PRELOAD=@@LIBDIR@@/libinject.@@LIBEXT@@ $*
