@@ -13,6 +13,7 @@ else
 oslibflags=-shared
 endif
 endif
+libext=$(if $(oslibext),$(oslibext),so)
 ifeq ($(mode),develop)
 CFLAGS=-O2 -g -fstrict-aliasing -Wall -Wextra -Werror -Wchar-subscripts -Wundef \
        -Wshadow -Wcast-align -Wwrite-strings -Wsign-compare -Wunused            \

@@ -5,7 +5,7 @@ LIBS=-ldl -lpthread
 SUBDIRS=actions conditions
 CLEANSUBDIRS=$(addprefix clean-,$(SUBDIRS))
 OBJECTS=binding.o ligHT.o socketinfo.o parser.o actions.o conffile.o runtime.o
-TARGET=../libinject.$(if $(oslibext),$(oslibext),so)
+TARGET=../libinject.$(libext)
 
 all: $(SUBDIRS) $(TARGET)
 

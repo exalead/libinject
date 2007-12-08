@@ -3,7 +3,7 @@ LDFLAGS=$(oslibflags)
 LIBS=-ldl -lpthread
 
 OBJECTS=testlib.o
-TARGET=../libtestlib.$(if $(oslibext),$(oslibext),so)
+TARGET=../libtestlib.$(libext)
 
 all: $(TARGET)
 
