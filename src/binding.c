@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 #include "ligHT.h"
 #include "socketinfo.h"
@@ -42,12 +43,14 @@ static LigHT* sockets = NULL;
 /*** Callbacks pointing to the overriden system function */
 
 typedef ssize_t (readfun)(int fd, void* buf, size_t len);
+typedef ssize_t (readvfun)(int fd, __const struct iovec* iovec, int count);
 typedef ssize_t (recvfun)(int fd, void* buf, size_t len, int flags);
 typedef ssize_t (recvfromfun)(int fd, void* __restrict buf, size_t n, int flags,
-                               struct sockaddr* __restrict addr, socklen_t* __restrict addr_len);
+                              struct sockaddr* __restrict addr, socklen_t* __restrict addr_len);
 typedef ssize_t (recvmsgfun)(int fd, struct msghdr* message, int flags);
 
 typedef ssize_t (writefun)(int fd, __const void* buf, size_t n);
+typedef ssize_t (writevfun)(int fd, __const struct iovec* iovec, int count);
 typedef ssize_t (sendfun)(int fd, __const void* buf, size_t n, int flags);
 typedef ssize_t (sendtofun)(int fd, __const void* buf, size_t n, int flags,
                             const struct sockaddr* addr, socklen_t addr_len);
@@ -57,11 +60,13 @@ typedef int (connectfun)(int fd, const struct sockaddr* addr, socklen_t addrlen)
 typedef ssize_t (closefun)(int fd);
 
 static readfun*     sysread = NULL;
+static readvfun*    sysreadv = NULL;
 static recvfun*     sysrecv = NULL;
 static recvfromfun* sysrecvfrom = NULL;
 static recvmsgfun*  sysrecvmsg = NULL;
 
 static writefun*    syswrite = NULL;
+static writevfun*   syswritev = NULL;
 static sendfun*     syssend = NULL;
 static sendtofun*   syssendto = NULL;
 static sendmsgfun*  syssendmsg = NULL;
@@ -138,6 +143,39 @@ static inline SocketInfo* getInfosOnConnect(int fd, const struct ConstAddrData* 
 
 /*** Receiving calls */
 
+/** Helper fonction to perform iovec (de)serialization
+ */
+static inline ssize_t prepareReadIOVec(SocketInfo* si, Action_syscall call,
+                                       const struct iovec* vect, size_t count,
+                                       int flags, void* data) {
+  size_t i;
+  size_t buflen = 0;
+  void* buf = NULL;
+  ssize_t ret;
+  ssize_t lret;
+  char* pos;
+
+  for (i = 0 ; i < count ; ++i) {
+    buflen += vect[i].iov_len;
+  }
+  pos = buf = malloc(buflen);
+  if (buf == NULL) {
+    return -2;
+  }
+  lret = ret = ActionQueue_process(config->queue, si, Reading, call,
+                                   buf, buflen, flags, data);
+  for (i = 0 ; i < count && lret > 0 ; ++i) {
+    size_t toRead;
+    toRead = lret >= (ssize_t)vect[i].iov_len ? (ssize_t)vect[i].iov_len : lret;
+    lret -= toRead;
+    memcpy(vect[i].iov_base, pos, toRead);
+    pos += toRead;
+  }
+  free(buf);
+  return ret;
+}
+
+
 /* read */
 
 static ssize_t readCB(int fd, void* buf, size_t len, int flags, void* data) {
@@ -153,6 +191,25 @@ ssize_t read(int fd, void* buf, size_t len) {
   } else {
     GET_SYSCALL(read)
     ret = sysread(fd, buf, len);
+  }
+  RELEASE_SI
+  return ret;
+}
+
+
+/* readv */
+
+ssize_t readv(int fd, __const struct iovec* iovec, int count) {
+  SocketInfo* si = NULL;
+  ssize_t ret;
+
+  if (config && (si = getInfos(fd))) {
+    if ((ret = prepareReadIOVec(si, readCB, iovec, count, 0, NULL)) == -2) {
+      ret = sysreadv(fd, iovec, count);
+    }
+  } else {
+    GET_SYSCALL(readv)
+    ret = sysreadv(fd, iovec, count);
   }
   RELEASE_SI
   return ret;
@@ -204,14 +261,66 @@ ssize_t recvfrom(int fd, void* __restrict buf, size_t len, int flags,
   return ret;
 }
 
-#if 0 /* Not yet implemented. Should be done to be sure to catch all messages. */
-ssize_t recvmsg(int fd, struct msghdr* message, int flags) {
-  return sysrecvmsg(fd, message, flags);
+
+/* recvmsg */
+
+static ssize_t recvmsgCB(int fd, void* buf, size_t len, int flags, void* data) {
+  struct msghdr* message = (struct msghdr*)data;
+  struct msghdr  msgcpy  = *message;
+  struct iovec   vect    = { buf, len };
+  msgcpy.msg_iov    = &vect;
+  msgcpy.msg_iovlen = 1;
+  return sysrecvmsg(fd, &msgcpy, flags);
 }
-#endif
+
+ssize_t recvmsg(int fd, struct msghdr* message, int flags) {
+  SocketInfo* si = NULL;
+  ssize_t ret = 0;
+
+  if (config && (si = getInfos(fd))) {
+    if ((ret = prepareReadIOVec(si, recvmsgCB, message->msg_iov,
+                                message->msg_iovlen, flags, message)) == -2) {
+        ret = sysrecvmsg(fd, message, flags);
+    }
+  } else {
+    GET_SYSCALL(recvmsg)
+    ret = sysrecvmsg(fd, message, flags);
+  }
+  RELEASE_SI
+  return ret;
+}
 
 
 /*** Sending calls */
+
+/** Helper fonction to perform iovec (de)serialization
+ */
+static inline ssize_t prepareWriteIOVec(SocketInfo* si, Action_syscall call,
+                                        const struct iovec* vect, size_t count,
+                                        int flags, void* data) {
+  size_t i;
+  size_t buflen = 0;
+  void* buf = NULL;
+  ssize_t ret;
+  char* pos;
+
+  for (i = 0 ; i < count ; ++i) {
+    buflen += vect[i].iov_len;
+  }
+  pos = buf = malloc(buflen);
+  if (buf == NULL) {
+    return -2;
+  }
+  for (i = 0 ; i < count ; ++i) {
+    memcpy(pos, vect[i].iov_base, vect[i].iov_len);
+    pos += vect[i].iov_len;
+  }
+  ret = ActionQueue_process(config->queue, si, Reading, call,
+                            buf, buflen, flags, data);
+  free(buf);
+  return ret;
+}
+
 
 /* write */
 
@@ -228,6 +337,25 @@ ssize_t write(int fd, __const void* buf, size_t n) {
   } else {
     GET_SYSCALL(write)
     ret = syswrite(fd, buf, n);
+  }
+  RELEASE_SI
+  return ret;
+}
+
+
+/* writev */
+
+ssize_t writev(int fd, __const struct iovec* iovec, int count) {
+  SocketInfo* si = NULL;
+  ssize_t ret;
+
+  if (config && (si = getInfos(fd))) {
+    if ((ret = prepareWriteIOVec(si, writeCB, iovec, count, 0, NULL)) == -2) {
+      ret =syswritev(fd, iovec, count);
+    }
+  } else {
+    GET_SYSCALL(writev)
+    ret = syswritev(fd, iovec, count);
   }
   RELEASE_SI
   return ret;
@@ -280,11 +408,54 @@ ssize_t sendto(int fd, __const void* buf, size_t n, int flags,
   return ret;
 }
 
-#if 0 /* Not yet implemented, should be done to be sure to catch all messages. */
-ssize_t sendmsg(int fd, __const struct msghdr* message, int flags) {
-  return syssendmsg(fd, message, flags);
+
+/* sendmsg */
+
+static ssize_t sendmsgCB(int fd, void* buf, size_t len, int flags, void* data) {
+  struct msghdr* message = (struct msghdr*)data;
+  struct msghdr  msgcpy  = *message;
+  struct iovec* vect;
+  size_t nb = 0;
+  size_t i = 0;
+  size_t blen = 0;
+  char* pos = buf;
+  ssize_t ret;
+
+  for (i = 0 ; i < (size_t)msgcpy.msg_iovlen && blen < len ; ++i) {
+    blen += msgcpy.msg_iov[i].iov_len;
+    ++nb;
+  }
+  vect = (struct iovec*)malloc(nb * sizeof(struct iovec));
+  blen = len;
+  for (i = 0 ; i < nb ; ++i) {
+    vect[i].iov_base = pos;
+    vect[i].iov_len  = blen > msgcpy.msg_iov[i].iov_len ? msgcpy.msg_iov[i].iov_len : blen;
+    blen -= vect[i].iov_len;
+    pos  += vect[i].iov_len;
+  }
+  msgcpy.msg_iov = vect;
+  msgcpy.msg_iovlen = nb;
+  ret = sysrecvmsg(fd, &msgcpy, flags);
+  free(vect);
+  return ret;
 }
-#endif
+
+ssize_t sendmsg(int fd, __const struct msghdr* message, int flags) {
+  SocketInfo* si = NULL;
+  ssize_t ret = 0;
+
+  if (config && (si = getInfos(fd))) {
+    if ((ret = prepareWriteIOVec(si, sendmsgCB, message->msg_iov,
+                                 message->msg_iovlen, flags, (void*)message)) == -2) {
+        ret = syssendmsg(fd, message, flags);
+    }
+  } else {
+    GET_SYSCALL(sendmsg)
+    ret = syssendmsg(fd, message, flags);
+  }
+  RELEASE_SI
+  return ret;
+}
 
 
 /*** Want to connect to a new socket... */
@@ -343,11 +514,13 @@ void inj_init(void) {
   srand(time(NULL));
 
   GET_SYSCALL(read)
+  GET_SYSCALL(readv)
   GET_SYSCALL(recv)
   GET_SYSCALL(recvfrom)
   GET_SYSCALL(recvmsg)
 
   GET_SYSCALL(write)
+  GET_SYSCALL(writev)
   GET_SYSCALL(send)
   GET_SYSCALL(sendto)
   GET_SYSCALL(sendmsg)
