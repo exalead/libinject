@@ -19,7 +19,7 @@ socketinfo.o: socketinfo.c socketinfo.h Makefile
 parser.o: parser.c parser.h Makefile
 actions.o: actions.c actions.h socketinfo.h actionsdk.h parser.h actionlist.h conditionlist.h Makefile
 conffile.o: conffile.c conffile.h actions.h parser.h Makefile
-runtime.o: runtime.c runtime.h conffile.h Makefile
+runtime.o: runtime.c runtime.h conffile.h parser.h Makefile
 
 conditions actions: %: actionlist.h conditionlist.h
 $(SUBDIRS):
