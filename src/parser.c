@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdio.h>
 
 #include "parser.h"
 
@@ -31,13 +30,6 @@ struct Parser {
   size_t capacity;            /**< The capacity of the parser. */
   size_t length;              /**< The number of parser pieces. */
   struct ParserPiece* pieces; /**< The element of the parser. */
-};
-
-/** Status of the parser.
- */
-struct ParserStatus {
-  char  str[1024]; /**< String describing the error. */
-  const char* pos; /**< Position of the error. */
 };
 
 Parser* Parser_init(void) {
@@ -126,23 +118,6 @@ bool ParserStatus_check(ParserStatus* status) {
     return false;
   }
   return status->pos != NULL;
-}
-
-bool ParserStatus_set(ParserStatus* status, const char* where, const char* error,
-                      bool force, const char* function, const char* file, int line) {
-  if (status && (force || status->pos == NULL)) {
-    status->pos = where;
-    snprintf(status->str, 1023, "Parser error in %s at %s:%d: \"%s\"",
-             function, file, line, error);
-  }
-  return false;
-}
-
-bool ParserStatus_clear(ParserStatus* status) {
-  if (status) {
-    status->pos = NULL;
-  }
-  return true;
 }
 
 char* ParserStatus_error(ParserStatus* status, const char* instruction) {

@@ -12,6 +12,7 @@
 #define _PARSER_H_
 
 #include <stdbool.h>
+#include <stdio.h>
 
 /** @defgroup parser Line parser
  *
@@ -211,6 +212,13 @@ bool Parser_addSpaced(Parser* parser, ParserElement* element, void* dest,
 bool Parser_run(Parser* parser, const char* string, ParserBehaviour behaviour,
                 bool destroy, ParserStatus* status);
 
+/** Status of the parser.
+ */
+struct ParserStatus {
+  char  str[1024]; /**< String describing the error. */
+  const char* pos; /**< Position of the error. */
+};
+
 /** Build a new ParserStatus.
  *
  * @return A new parser status or null.
@@ -231,8 +239,16 @@ ParserStatus* ParserStatus_init(void);
  * @param line   The line at which the parse error occured.
  * @return Always return false.
  */
-bool ParserStatus_set(ParserStatus* status, const char* where, const char* error,
-                      bool force, const char* function, const char* file, int line);
+static inline bool ParserStatus_set(ParserStatus* status, const char* where,
+                                    const char* error, bool force,
+                                    const char* function, const char* file, int line) {
+  if (status && (force || status->pos == NULL)) {
+    status->pos = where;
+    snprintf(status->str, 1023, "Parser error in %s at %s:%d: \"%s\"",
+             function, file, line, error);
+  }
+  return false;
+}
 
 /** Set the error if no error is currently set.
  *
@@ -264,7 +280,12 @@ bool ParserStatus_set(ParserStatus* status, const char* where, const char* error
  * @param status The status to update.
  * @return Always return true.
  */
-bool ParserStatus_clear(ParserStatus* status);
+static inline bool ParserStatus_clear(ParserStatus* status) {
+  if (status) {
+    status->pos = NULL;
+  }
+  return true;
+}
 
 /** A wrapper around @ref ParserStatus_clear.
  *
