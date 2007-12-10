@@ -19,14 +19,15 @@
  * @@DOC@@    having the specified percentage of the global size.
  */
 
-static bool ActionSplit_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionSplit_argument(const char** from, void* dest,
+                                 const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
   const char* source = *from;
-  if (Parse_int(&source, &data[0].i, NULL) && data[0].i >= 0 && data[0].i <= 100) {
+  if (Parse_int(&source, &data[0].i, NULL, status) && data[0].i >= 0 && data[0].i <= 100) {
     *from = source;
     return true;
   }
-  return false;
+  return SET_PARSE_ERROR(*from, "Value should be between 0 and 100");
 }
 
 static bool ActionSplit_perform(int pos, ActionData* data, SocketInfo* si,

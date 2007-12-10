@@ -75,9 +75,10 @@ static Parse_enumData signals[] = {
 #endif
 };
 
-static bool ActionEmit_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionEmit_argument(const char** from, void* dest,
+                                const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  return Parse_enum(from, &data[0].i, signals);
+  return Parse_enum(from, &data[0].i, signals, status);
 }
 
 static void ActionEmit_write(char** buffer, ActionData* data) {

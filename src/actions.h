@@ -15,7 +15,7 @@
 #include <stdbool.h>
 
 #include "socketinfo.h"
-
+#include "parser.h"
 
 /** @defgroup Action Action rule
  *
@@ -78,9 +78,10 @@ typedef struct Action Action;
  *     - <b>stop</b> stop processing
  *
  * @param instruction An instruction detailing the rule.
+ * @param status      The parser status
  * @return A new Action, or NULL if an error occured.
  */
-Action* Action_init(const char* instruction);
+Action* Action_init(const char* instruction, ParserStatus* status);
 
 /** Destroy an action.
  *
@@ -161,6 +162,7 @@ void ActionQueue_destroy(ActionQueue* queue);
  * @param queue   The queue.
  * @param instruction The action to add. It must be well initialized
  *                and contains an offset.
+ * @param status  The parser status for error reporting.
  * @param replace If false, the the function will fail if the
  *                offset of the action is already filled by another
  *                action. If true, the slot requested by the action
@@ -168,7 +170,8 @@ void ActionQueue_destroy(ActionQueue* queue);
  * @param mt      If true, the function lock the accesses to the queue.
  * @return false if the function failed, true if it succeed.
  */
-bool ActionQueue_put(ActionQueue* queue, const char* instruction, bool replace, bool mt);
+bool ActionQueue_put(ActionQueue* queue, const char* instruction,
+                     ParserStatus* status, bool replace, bool mt);
 
 /** Get the posth element of the queue.
  *

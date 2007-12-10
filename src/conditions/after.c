@@ -15,10 +15,11 @@
  * @@DOC@@  milliseconds of the life of the rule.
  */
 
-static bool ActionAfter_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionAfter_argument(const char** from, void* dest,
+                                 const void* constraint, ParserStatus* status) {
   ActionData* data = (ActionData*)dest;
   data[1].ul = getMSecTime();
-  return Parse_int(from, &data[0].i, NULL);
+  return Parse_int(from, &data[0].i, NULL, status);
 }
 
 static void ActionAfter_write(char** buffer, ActionData* data) {

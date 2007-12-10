@@ -17,14 +17,16 @@
  * @@DOC@@    is 'never'
  */
 
-static bool ActionProb_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionProb_argument(const char** from, void* dest,
+                                const void* constraint, ParserStatus* status) {
   ActionData* data = (ActionData*)dest;
   const char* source = *from;
-  if (Parse_int(&source, &data[0].i, NULL) && data[0].i >= 0 && data[0].i <= 100) {
+  if (Parse_int(&source, &data[0].i, NULL, status)
+      && data[0].i >= 0 && data[0].i <= 100) {
     *from = source;
     return true;
   }
-  return false;
+  return SET_PARSE_ERROR(*from, "Probability must be between 0 and 100");
 }
 
 static void ActionProb_write(char** buffer, ActionData* data) {

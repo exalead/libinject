@@ -14,9 +14,10 @@
  * @@DOC@@  <b>echo [word]</b> display the given word
  */
 
-static bool ActionEcho_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionEcho_argument(const char** from, void* dest,
+                                const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  if (!Parse_word(from, &data[0].str, NULL)) {
+  if (!Parse_word(from, &data[0].str, NULL, status)) {
     if (data[0].str) {
       free(data[0].str);
     }

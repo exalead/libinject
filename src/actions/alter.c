@@ -15,9 +15,10 @@
  * @@DOC@@  being given on 1/1,000,000
  */
 
-static bool ActionAlter_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionAlter_argument(const char** from, void* dest,
+                                 const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  return Parse_int(from, &data[0].i, NULL);
+  return Parse_int(from, &data[0].i, NULL, status);
 }
 
 static void ActionAlter_write(char** buffer, ActionData* data) {

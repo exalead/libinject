@@ -18,6 +18,12 @@
  * Light line parser. @{
  */
 
+/** Status of the parser.
+ *
+ * Store the error status of a parsing. This is useful to print parse error
+ */
+typedef struct ParserStatus ParserStatus;
+
 /** An element of the parser.
  *
  * An element is designed to extract a part of a @p from string and set the
@@ -36,7 +42,8 @@
  * @param constraint An extra argument giving constraints to the parser.
  * @return success or not success ? that is the question.
  */
-typedef bool (ParserElement)(const char** from, void* dest, const void* constraint);
+typedef bool (ParserElement)(const char** from, void* dest,
+                             const void* constraint, ParserStatus* status);
 
 /** A callback to destroy a constraint data.
  *
@@ -198,10 +205,98 @@ bool Parser_addSpaced(Parser* parser, ParserElement* element, void* dest,
  * @param destroy If true, destroy the parser after execution.
  * @param behaviour The behaviour of the root parser (its suite by default
  *                  when running Parser_run).
+ * @param status The parser status or null.
  * @return True if the string has been correctly matched.
  */
-bool Parser_run(Parser* parser, const char* string,
-                ParserBehaviour behaviour, bool destroy);
+bool Parser_run(Parser* parser, const char* string, ParserBehaviour behaviour,
+                bool destroy, ParserStatus* status);
+
+/** Build a new ParserStatus.
+ *
+ * @return A new parser status or null.
+ */
+ParserStatus* ParserStatus_init(void);
+
+/** Set parser error status.
+ *
+ * You should use the @ref SET_PARSE_ERROR and @ref FORCE_PARSE_ERROR macros instead.
+ *
+ * @param status The status to update.
+ * @param where  The position in the string at which the parse error occured.
+ * @param error  String error. The string copied in an internal buffer.
+ * @param force  If false and an error is already set, the elder error is
+ *               kept, if true, the new error is already set.
+ * @param function Function in which the parse error occured.
+ * @param file   The file in which the parse error occured.
+ * @param line   The line at which the parse error occured.
+ * @return Always return false.
+ */
+bool ParserStatus_set(ParserStatus* status, const char* where, const char* error,
+                      bool force, const char* function, const char* file, int line);
+
+/** Set the error if no error is currently set.
+ *
+ * A wrapper around @ref ParseStatus_set.
+ *
+ * @param status The status to update.
+ * @param where  The position in the string where the parse error occured.
+ * @param error  The error string.
+ * @return Always return false.
+ */
+#define SET_PARSE_ERROR(where, error)                                          \
+  ParserStatus_set(status, where, error, false, __FUNCTION__, __FILE__, __LINE__)
+
+/** Set the error.
+ *
+ * A wrapper around @ref ParserStatus_set
+ * @param status The status to update.
+ * @param where  The position in the string where the parse error occured.
+ * @param error  The error string.
+ * @return Always return false.
+ */
+#define FORCE_PARSE_ERROR(where, error)                                        \
+  ParserStatus_set(status, where, error, true, __FUNCTION__, __FILE__, __LINE__)
+
+/** Clear the error status.
+ *
+ * You should use the @ref CLEAR_PARSE_ERROR macro instead.
+ *
+ * @param status The status to update.
+ * @return Always return true.
+ */
+bool ParserStatus_clear(ParserStatus* status);
+
+/** A wrapper around @ref ParserStatus_clear.
+ *
+ * This parser is a perfect alias for @ref ParserStatus_clear, but provides
+ * API consistency with @ref SET_PARSE_ERROR
+ *
+ * @param status The status to update.
+ * @return Always return true.
+ */
+#define CLEAR_PARSE_ERROR                                                      \
+  ParserStatus_clear(status)
+
+/** Check if the status contains an error.
+ *
+ * @param status The status to check.
+ * @return True if the status indicates that an error has occurred.
+ */
+bool ParserStatus_check(ParserStatus* status);
+
+/** Print the error associated to the given instruction.
+ *
+ * @param status The status.
+ * @param instruction The instruction the status has been run against.
+ * @return A string (to remove afterward) or NULL if no error was reported.
+ */
+char* ParserStatus_error(ParserStatus* status, const char* instruction);
+
+/** Delete the status.
+ *
+ * @param status the status.
+ */
+void ParserStatus_destroy(ParserStatus* status);
 
 /** Parse rules one after the other.
  *

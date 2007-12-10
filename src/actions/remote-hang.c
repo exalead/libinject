@@ -14,9 +14,10 @@
  * @@DOC@@  <b>remote-hang [ms]</b> hang in order to simulate a hang in the remote system
  */
 
-static bool ActionRemoteHang_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionRemoteHang_argument(const char** from, void* dest,
+                                      const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  return Parse_int(from, &data[0].i, NULL);
+  return Parse_int(from, &data[0].i, NULL, status);
 }
 
 static void ActionRemoteHang_write(char** buffer,  ActionData* data) {

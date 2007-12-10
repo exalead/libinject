@@ -16,12 +16,14 @@
  * @@DOC@@  creation of the rule.
  */
 
-static bool ActionBetween_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionBetween_argument(const char** from, void* dest,
+                                   const void* constraint, ParserStatus* status) {
   ActionData* data = (ActionData*)dest;
   const char* source = *from;
 
-  if (Parse_int(&source, &data[0].i, NULL) && Parse_space(&source, NULL, NULL)
-      && Parse_int(&source, &data[1].i, NULL)) {
+  if (Parse_int(&source, &data[0].i, NULL, status)
+      && Parse_space(&source, NULL, NULL, status)
+      && Parse_int(&source, &data[1].i, NULL, status)) {
     data[2].ul = getMSecTime();
     *from = source;
     return true;

@@ -15,9 +15,10 @@
  * @@DOC@@    <b>truncate [size]</b> send/receive at most the given size
  */
 
-static bool ActionTruncate_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionTruncate_argument(const char** from, void* dest,
+                                    const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  return Parse_int(from, &data[0].i, NULL);
+  return Parse_int(from, &data[0].i, NULL, status);
 }
 
 bool ActionTruncate_perform(int pos, ActionData* data, SocketInfo* si,

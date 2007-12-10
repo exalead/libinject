@@ -16,9 +16,10 @@
  * @@DOC@@  been read in case of reading.
  */
 
-static bool ActionLocalHang_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionLocalHang_argument(const char** from, void* dest,
+                                     const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  return Parse_int(from, &data[0].i, NULL);
+  return Parse_int(from, &data[0].i, NULL, status);
 }
 
 static void ActionLocalHang_write(char** buffer,  ActionData* data) {

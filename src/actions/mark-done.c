@@ -15,12 +15,13 @@
  * @@DOC@@  The type can be "call" or "socket".
  */
 
-static bool ActionMarkDone_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionMarkDone_argument(const char** from, void* dest,
+                                    const void* constraint, ParserStatus* status) {
   static Parse_enumData d[] = { { "call", 1 }, { "socket", 2 } };
   union ActionData* data = (union ActionData*)dest;
   const char* source = *from;
-  if (Parse_enum(&source, &data[0].i, d) && Parse_space(&source, NULL, NULL)
-      && Parse_int(&source, &data[1].i, NULL)) {
+  if (Parse_enum(&source, &data[0].i, d, status) && Parse_space(&source, NULL, NULL, status)
+      && Parse_int(&source, &data[1].i, NULL, status)) {
     *from = source;
     return true;
   }

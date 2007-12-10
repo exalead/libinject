@@ -25,7 +25,7 @@ static bool testInt(TestFeed data, TestFeed result) {
 
   parser = Parser_init();
   Parser_addInt(parser, &i);
-  return Parser_run(parser, str, PB_suite, true) && i == expected;
+  return Parser_run(parser, str, PB_suite, true, NULL) && i == expected;
 }
 
 static bool testWord(TestFeed data, TestFeed result) {
@@ -40,7 +40,7 @@ static bool testWord(TestFeed data, TestFeed result) {
 
   parser = Parser_init();
   Parser_add(parser, Parse_word, &i, NULL, NULL);
-  ok = Parser_run(parser, str, PB_suite, true);
+  ok = Parser_run(parser, str, PB_suite, true, NULL);
   if (i) {
     ok = (ok && strcmp(expected, i) == 0);
     free(i);
@@ -58,7 +58,7 @@ static bool testConstant(TestFeed data, TestFeed result) {
 
   parser = Parser_init();
   Parser_add(parser, Parse_word, NULL, expected, NULL);
-  return Parser_run(parser, str, PB_suite, true);
+  return Parser_run(parser, str, PB_suite, true, NULL);
 }
 
 static bool testSpace(TestFeed data, TestFeed result) {
@@ -69,7 +69,7 @@ static bool testSpace(TestFeed data, TestFeed result) {
 
   parser = Parser_init();
   Parser_addSpace(parser);
-  return Parser_run(parser, str, PB_suite, true);
+  return Parser_run(parser, str, PB_suite, true, NULL);
 }
 
 static bool testEOB(TestFeed data, TestFeed result) {
@@ -80,7 +80,7 @@ static bool testEOB(TestFeed data, TestFeed result) {
 
   parser = Parser_init();
   Parser_checkEOB(parser);
-  return Parser_run(parser, str, PB_suite, true);
+  return Parser_run(parser, str, PB_suite, true, NULL);
 }
 
 static bool testSuite(TestFeed data, TestFeed result) {
@@ -95,7 +95,7 @@ static bool testSuite(TestFeed data, TestFeed result) {
   Parser_addSpacedConstant(parser, "do");
   Parser_add(parser, Parse_word, &str, NULL, NULL);
   Parser_checkEOB(parser);
-  ok = Parser_run(parser, "on 42 do BOUBOUBOUM", PB_suite, true);
+  ok = Parser_run(parser, "on 42 do BOUBOUBOUM", PB_suite, true, NULL);
   if (str) {
     ok = (ok && strcmp(str, "BOUBOUBOUM") == 0);
     free(str);
@@ -114,7 +114,7 @@ static bool testFirst(TestFeed data, TestFeed result) {
   Parser_addConstant(parser, "cou");
   Parser_addConstant(parser, "c");
   Parser_addConstant(parser, "coucouc");
-  return Parser_run(parser, str, PB_first, true);
+  return Parser_run(parser, str, PB_first, true, NULL);
 }
 
 static bool testOptional(TestFeed data, TestFeed result) {
@@ -130,7 +130,7 @@ static bool testOptional(TestFeed data, TestFeed result) {
   parser = Parser_init();
   Parser_addSpacedConstant(parser, "host");
   Parser_add(parser, Parse_word, &i, NULL, NULL);
-  ok = Parser_run(parser, str, PB_optional, true);
+  ok = Parser_run(parser, str, PB_optional, true, NULL);
   if (expected == NULL) {
     ok = (expected == i);
   } else if (i == NULL) {
@@ -150,7 +150,7 @@ static bool testFalse(TestFeed data, TestFeed result) {
 
   parser = Parser_init();
   Parser_addInt(parser, &i);
-  return ! Parser_run(parser, "1234", PB_false, true);
+  return ! Parser_run(parser, "1234", PB_false, true, NULL);
 }
 
 static bool testEnum(TestFeed data, TestFeed result) {
@@ -164,7 +164,7 @@ static bool testEnum(TestFeed data, TestFeed result) {
 
   parser = Parser_init();
   Parser_add(parser, Parse_enum, &i, vals, NULL);
-  return Parser_run(parser, "forty-two", PB_suite, true) && i == res;
+  return Parser_run(parser, "forty-two", PB_suite, true, NULL) && i == res;
 }
 
 static bool testNot(TestFeed data, TestFeed result) {
@@ -176,7 +176,7 @@ static bool testNot(TestFeed data, TestFeed result) {
   parser = Parser_init();
   Parser_add(parser, Parse_not, NULL, (void*)"]", NULL);
   Parser_addConstant(parser, "]");
-  return Parser_run(parser, str, PB_suite, true);
+  return Parser_run(parser, str, PB_suite, true, NULL);
 }
 
 static bool testLine(TestFeed data, TestFeed result) {
@@ -196,7 +196,7 @@ static bool testLine(TestFeed data, TestFeed result) {
     }
     --lines;
   }
-  return Parser_run(parser, str, PB_suite, true);
+  return Parser_run(parser, str, PB_suite, true, NULL);
 }
 
 int main(void) {

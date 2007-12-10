@@ -23,9 +23,10 @@
  * @@DOC@@    conjunction of injecthexdump to graph the output of the dump action.
  */
 
-static bool ActionLog_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionLog_argument(const char** from, void* dest,
+                               const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  if (Parse_word(from, &data[1].str, NULL)) {
+  if (Parse_word(from, &data[1].str, NULL, status)) {
     data[0].p = NULL;
     if (strcmp(data[1].str, "-") == 0) {
       free(data[1].str);

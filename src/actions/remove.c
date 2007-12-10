@@ -15,9 +15,10 @@
  * @@DOC@@  can't remove system lines
  */
 
-static bool ActionRemove_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionRemove_argument(const char** from, void* dest,
+                                  const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  return Parse_int(from, &data[0].i, NULL);
+  return Parse_int(from, &data[0].i, NULL, status);
 }
 
 static void ActionRemove_write(char** buffer, ActionData* data) {

@@ -27,9 +27,10 @@ static Parse_enumData errors[] = { { "EAGAIN", EAGAIN }, { "EBADF", EBADF },
   { "EINPROGRESS", EINPROGRESS }, { "EISCONN", EISCONN }, { "ENETUNREACH", ENETUNREACH },
   { "ENOTSOCK", ENOTSOCK }, { "ETIMEDOUT", ETIMEDOUT }, { NULL, 0 } };
 
-static bool ActionError_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionError_argument(const char** from, void* dest,
+                                 const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  return Parse_enum(from, &data[0].i, errors);
+  return Parse_enum(from, &data[0].i, errors, status);
 }
 
 static void ActionError_write(char** buffer, ActionData* data) {

@@ -20,7 +20,8 @@
  * @@DOC@@  true for 10 seconds again...
  */
 
-static bool ActionCycle_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionCycle_argument(const char** from, void* dest,
+                                 const void* constraint, ParserStatus* status) {
   ActionData* data = (ActionData*)dest;
   bool ret;
   const char* source = *from;
@@ -30,7 +31,7 @@ static bool ActionCycle_argument(const char** from, void* dest, const void* cons
   Parser_addSpacedBool(parser, &data[0].i);
   Parser_addSpacedInt(parser, &data[1].i);
   Parser_addInt(parser, &data[2].i);
-  ret = Parse_suite(&source, NULL, parser);
+  ret = Parse_suite(&source, NULL, parser, status);
   Parser_destroy(parser);
   if (!ret) {
     return false;

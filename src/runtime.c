@@ -169,6 +169,7 @@ static void* Runtime_thread(void* d) {
   struct RuntimeData* data = (struct RuntimeData*)d;
   Parser* parser;
   Parser* subparser;
+  ParserStatus* status;
   Parse_enumData ed[] = { { "list", RC_List }, { "add", RC_Add },
     { "replace", RC_Replace }, { "remove", RC_Remove }, { "quit", RC_Close },
     { "exit", RC_Exit }, { "help", RC_Help }, { NULL, RC_None } };
@@ -185,6 +186,7 @@ static void* Runtime_thread(void* d) {
   Parser_addChar(parser, ":");
   subparser = Parser_newSubParser(parser, PB_optional);
   Parser_addSpace(subparser);
+  status = ParserStatus_init();
 
   /* Do not support multi-connection */
   while (!closeProg && (fd = data->accept(data->fd)) != -1) {
@@ -204,6 +206,7 @@ static void* Runtime_thread(void* d) {
       while (!closeCon && pos) {
         const char* line = pos;
         pos = strchr(pos, '\n');
+        (void)CLEAR_PARSE_ERROR;
         if (pos != NULL) {
           *pos = '\0';
           ++pos;
@@ -211,7 +214,7 @@ static void* Runtime_thread(void* d) {
         if (strlen(line) <= 3) {
           continue;
         }
-        if (!Parse_suite(&line, NULL, parser) || command == RC_None) {
+        if (!Parse_suite(&line, NULL, parser, status) || command == RC_None) {
           RuntimeAll_write(data->writer(fd), "Error: invalid command\n\n");
           continue;
         }
@@ -221,15 +224,29 @@ static void* Runtime_thread(void* d) {
           RuntimeAll_write(data->writer(fd), "Done\n\n");
           break;
          case RC_Add:
-          if (!ActionQueue_put(data->config->queue, line, false, true)) {
-            RuntimeAll_write(data->writer(fd), "Error: invalid rule. It may be due to line number collision.\n\n");
+          if (!ActionQueue_put(data->config->queue, line, status, false, true)) {
+            if (ParserStatus_check(status)) {
+              char* err = ParserStatus_error(status, line);
+              RuntimeAll_write(data->writer(fd), "Error: invalid rule.\n");
+              RuntimeAll_write(data->writer(fd), err);
+              RuntimeAll_write(data->writer(fd), "\n");
+              free(err);
+            } else {
+              RuntimeAll_write(data->writer(fd), "Error: invalid rule, line number collision.\n\n");
+            }
           } else {
             RuntimeAll_write(data->writer(fd), "Done\n\n");
           }
           break;
          case RC_Replace:
-          if (!ActionQueue_put(data->config->queue, line, true, true)) {
-            RuntimeAll_write(data->writer(fd), "Error: invalid rule.\n\n");
+          if (!ActionQueue_put(data->config->queue, line, status, true, true)) {
+            if (ParserStatus_check(status)) {
+              char* err = ParserStatus_error(status, line);
+              RuntimeAll_write(data->writer(fd), "Error: invalid rule.\n");
+              RuntimeAll_write(data->writer(fd), line);
+              RuntimeAll_write(data->writer(fd), "\n");
+              free(err);
+            }
           } else {
             RuntimeAll_write(data->writer(fd), "Done\n\n");
           }
@@ -237,7 +254,7 @@ static void* Runtime_thread(void* d) {
          case RC_Remove:
          {
           int lnb;
-          if (!Parse_int(&line, &lnb, NULL)) {
+          if (!Parse_int(&line, &lnb, NULL, status)) {
             RuntimeAll_write(data->writer(fd), "Error: 'remove' require a line number as argument.\n\n");
             break;
           }
@@ -268,6 +285,7 @@ static void* Runtime_thread(void* d) {
     data->globalClose(data->fd);
     raise(SIGTERM);
   }
+  ParserStatus_destroy(status);
   Parser_destroy(parser);
   return NULL;
 }
@@ -290,7 +308,7 @@ bool Runtime_start(Config* config) {
       char buffer[1024];
       buffer[1023] = '\0';
       snprintf(buffer, 1023, "0 on tcp with me port %d do nop stop", config->runtime.port);
-      ActionQueue_put(config->queue, buffer, true, false);
+      ActionQueue_put(config->queue, buffer, NULL, true, false);
     }
     break;
    case RT_Pipe:

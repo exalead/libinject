@@ -47,7 +47,8 @@ enum Section {
 
 /** Parse comments.
  */
-static bool Config_parse_comment(const char** from, void* dest, const void* constraint) {
+static bool Config_parse_comment(const char** from, void* dest,
+                                 const void* constraint, ParserStatus* status) {
   static Parser* parser = NULL;
 
   if (parser == NULL) {
@@ -58,7 +59,7 @@ static bool Config_parse_comment(const char** from, void* dest, const void* cons
     Parser_addConstant(subparser, ';');
     Parser_add(subparser, Parse_line, NULL, NULL, NULL);
   }
-  return Parse_optional(from, dest, parser);
+  return Parse_optional(from, dest, parser, status);
 }
 
 Config* Config_init(const char* file) {
@@ -68,6 +69,7 @@ Config* Config_init(const char* file) {
   enum Section section = S_Rules;
   Parser* parseSection = NULL;
   Parser* parseRuntime = NULL;
+  ParserStatus* status = NULL;
   bool ok = true;
 
   if (!file) {
@@ -88,9 +90,11 @@ Config* Config_init(const char* file) {
   config->runtime.file = NULL;
   config->command      = NULL;
   config->queue = ActionQueue_init(2000);
+  status = ParserStatus_init();
 
   while (!feof(f)) {
     size_t len;
+    (void)CLEAR_PARSE_ERROR;
     if (fgets(line, 1023, f) == NULL && !feof(f)) {
       fprintf(stderr, "Read error\n");
       ok = false;
@@ -117,14 +121,17 @@ Config* Config_init(const char* file) {
         Parser_add(parseSection, Config_parse_comment, NULL, NULL, NULL);
         Parser_checkEOB(parseSection);
       }
-      if (!Parser_run(parseSection, line, PB_suite, false)) {
+      if (!Parser_run(parseSection, line, PB_suite, false, status)) {
         fprintf(stderr, "Invalid section: \"%s\"\n", line);
         ok = false;
         break;
       }
     } else if (section == S_Rules) {
-      if (!ActionQueue_put(config->queue, line, true, false)) {
-        fprintf(stderr, "Invalid rule: \"%s\"\n", line);
+      if (!ActionQueue_put(config->queue, line, status, true, false)) {
+        char* err;
+        err = ParserStatus_error(status, line);
+        fprintf(stderr, "%s", err);
+        free(err);
         ok = false;
         break;
       }
@@ -143,7 +150,7 @@ Config* Config_init(const char* file) {
         Parser_add(subparser, Parse_word, &readfile, NULL, NULL);
         Parser_add(parseRuntime, Config_parse_comment, NULL, NULL, NULL);
       }
-      if (!Parser_run(parseRuntime, line, PB_suite, false)) {
+      if (!Parser_run(parseRuntime, line, PB_suite, false, status)) {
         fprintf(stderr, "Invalid runtime: \"%s\"\n", line);
         ok = false;
         break;

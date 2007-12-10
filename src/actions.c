@@ -91,7 +91,8 @@ struct Action {
   pthread_cond_t  cond;      /**< Condition for waiting for accessor. */
 };
 
-static bool Action_parse_host(const char** from, void* dest, const void* constraint) {
+static bool Action_parse_host(const char** from, void* dest,
+                              const void* constraint, ParserStatus* status) {
   static Parse_enumData specialHosts[] = {
     { "me",  AH_Me },
     { "any", AH_Any },
@@ -125,7 +126,7 @@ static bool Action_parse_host(const char** from, void* dest, const void* constra
   Parser_add(subparser, Parse_word, &service, NULL, NULL);
 
   /* A host is a hostname AND a port */
-  ok = Parse_suite(&source, NULL, parser);
+  ok = Parse_suite(&source, NULL, parser, status);
   Parser_destroy(parser);
 
   if (!ok) {
@@ -136,7 +137,7 @@ static bool Action_parse_host(const char** from, void* dest, const void* constra
     hostaddr = gethostbyname(addr);
     free(addr);
     if (hostaddr == NULL) {
-      return false;
+      return SET_PARSE_ERROR(*from, "Invalid host name");
     }
     host->addr = ntohl(*(in_addr_t*)(hostaddr->h_addr));
   }
@@ -145,7 +146,7 @@ static bool Action_parse_host(const char** from, void* dest, const void* constra
     serv = getservbyname(service, "tcp");
     free(service);
     if (serv == NULL) {
-      return false;
+      return SET_PARSE_ERROR(*from, "Invalid service name");
     }
     host->port = serv->s_port;
     host->port = ntohs(host->port);
@@ -154,39 +155,43 @@ static bool Action_parse_host(const char** from, void* dest, const void* constra
   return ok;
 }
 
-static bool Action_parse_with(const char** from, void* dest, const void* constraint) {
+static bool Action_parse_with(const char** from, void* dest,
+                              const void* constraint, ParserStatus* status) {
   Action* action = (Action*)dest;
   action->direction = Any_Dir;
   return true;
 }
 
-static bool Action_parse_connect(const char** from, void* dest, const void* constraint) {
+static bool Action_parse_connect(const char** from, void* dest,
+                                 const void* constraint, ParserStatus* status) {
   SocketInfoDirection* dir = (SocketInfoDirection*)dest;
-  return Parse_word(from, NULL, (void*)"connect")
+  return Parse_word(from, NULL, (void*)"connect", status)
       && (*dir = Connecting);
 }
 
-static bool Action_parse_close(const char** from, void* dest, const void* constraint) {
+static bool Action_parse_close(const char** from, void* dest,
+                               const void* constraint, ParserStatus* status) {
   SocketInfoDirection* dir = (SocketInfoDirection*)dest;
-  return Parse_word(from, NULL, (void*)"close")
+  return Parse_word(from, NULL, (void*)"close", status)
       && (*dir = Closing);
 }
 
-static bool Action_parse_condition(const char** from, void* dest, const void* constraint) {
+static bool Action_parse_condition(const char** from, void* dest,
+                                   const void* constraint, ParserStatus* status) {
   const char* source = *from;
   char* action;
   struct ActionCondition* condition = (struct ActionCondition*)dest;
   int i;
 
-  if (!Parse_word(&source, &action, NULL)) {
+  if (!Parse_word(&source, &action, NULL, status)) {
     return false;
   }
   for (i = 0 ; i < ACT_Number ; ++i) {
     if (strcmp(action, conditionSet[i].name) == 0) {
       bool ret = true;
       if (conditionSet[i].argument) {
-        ret = Parse_space(&source, NULL, NULL) 
-              && conditionSet[i].argument(&source, condition->data, NULL);
+        ret = Parse_space(&source, NULL, NULL, status)
+              && conditionSet[i].argument(&source, condition->data, NULL, status);
       }
       free(action);
       if (ret) {
@@ -197,23 +202,25 @@ static bool Action_parse_condition(const char** from, void* dest, const void* co
     }
   }
   free(action);
-  return false;
+  return SET_PARSE_ERROR(*from, "Condition name expected");
 }
 
-static bool Action_parse_action(const char** from, void* dest, const void* constraint) {
+static bool Action_parse_action(const char** from, void* dest,
+                                const void* constraint, ParserStatus* status) {
   const char* source = *from;
   char* action;
   struct ActionTask* task = (struct ActionTask*)dest;
   int i;
 
-  if (!Parse_word(&source, &action, NULL)) {
+  if (!Parse_word(&source, &action, NULL, status)) {
     return false;
   }
   for (i = 0 ; i < ATT_Number ; ++i) {
     if (strcmp(action, taskSet[i].name) == 0) {
       bool ret = true;
       if (taskSet[i].argument) {
-        ret = Parse_space(&source, NULL, NULL) && taskSet[i].argument(&source, task->data, NULL);
+        ret = Parse_space(&source, NULL, NULL, status)
+            && taskSet[i].argument(&source, task->data, NULL, status);
       }
       free(action);
       if (ret) {
@@ -224,10 +231,11 @@ static bool Action_parse_action(const char** from, void* dest, const void* const
     }
   }
   free(action);
-  return false;
+  return SET_PARSE_ERROR(*from, "Action name expected");
 }
 
-static bool Action_parse_next(const char** from, void* dest, const void* constraint) {
+static bool Action_parse_next(const char** from, void* dest,
+                              const void* constraint, ParserStatus* status) {
   static Parse_enumData gotos[] = {
     { "continue", AGT_Continue },
     { "goto",     AGT_Goto },
@@ -239,14 +247,14 @@ static bool Action_parse_next(const char** from, void* dest, const void* constra
   struct ActionGoto* next = (struct ActionGoto*)dest;
   const char* source = *from;
   next->line = 0;
-  if (!Parse_enum(&source, &next->type, gotos)) {
+  if (!Parse_enum(&source, &next->type, gotos, status)) {
     return false;
   }
   if (next->type == AGT_Goto || next->type == AGT_Do) {
-    if (!Parse_space(&source, NULL, NULL)) {
+    if (!Parse_space(&source, NULL, NULL, status)) {
       return false;
     }
-    if (!Parse_int(&source, &next->line, NULL)) {
+    if (!Parse_int(&source, &next->line, NULL, status)) {
       return false;
     }
   }
@@ -254,7 +262,7 @@ static bool Action_parse_next(const char** from, void* dest, const void* constra
   return true;
 }
 
-static bool Action_parse(Action* action, const char* instruction) {
+static bool Action_parse(Action* action, const char* instruction, ParserStatus* status) {
   /* Static stuff for parser */
   static Parse_enumData protos[] = {
     { "ip",  AP_IP },
@@ -317,13 +325,13 @@ static bool Action_parse(Action* action, const char* instruction) {
   action->from.type      = AH_None;
   action->to.type        = AH_None;
 
-  return Parser_run(parser, instruction, PB_suite, true);
+  return Parser_run(parser, instruction, PB_suite, true, status);
 }
 
-Action* Action_init(const char* instruction) {
+Action* Action_init(const char* instruction, ParserStatus* status) {
   Action* action;
   action = (Action*)malloc(sizeof(Action));
-  if (!Action_parse(action, instruction)) {
+  if (!Action_parse(action, instruction, status)) {
     free(action);
     return NULL;
   }
@@ -555,9 +563,10 @@ void ActionQueue_destroy(ActionQueue* queue) {
   free(queue);
 }
 
-bool ActionQueue_put(ActionQueue* queue, const char* instruction, bool replace, bool mt) {
+bool ActionQueue_put(ActionQueue* queue, const char* instruction,
+                     ParserStatus* status, bool replace, bool mt) {
   Action* action;
-  action = Action_init(instruction);
+  action = Action_init(instruction, status);
   if (!action) {
     return false;
   }

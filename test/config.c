@@ -19,7 +19,7 @@ static bool testParser(TestFeed data, TestFeed result) {
   char*   instr;
 
   instr = (char*)data.p;
-  action = Action_init(instr);
+  action = Action_init(instr, NULL);
   if (action) {
     Action_destroy(action);
     return true;

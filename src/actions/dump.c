@@ -33,14 +33,15 @@
  * @@DOC@@    for data, and the log action format for actions.
  */
 
-static bool ActionDump_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionDump_argument(const char** from, void* dest,
+                                const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  if (Parse_word(from, &data[1].str, NULL)) {
+  if (Parse_word(from, &data[1].str, NULL, status)) {
     data[0].p = NULL;
     pthread_mutex_init(&data[2].mtx, NULL);
     return true;
   }
-  return true;
+  return false;
 }
 
 static bool ActionDump_perform(int pos, ActionData* data, SocketInfo* si,

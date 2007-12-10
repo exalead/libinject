@@ -19,9 +19,10 @@
  * @@DOC@@    <b>hang [ms]</b> immediately hang the given amount of time given in milliseconds
  */
 
-static bool ActionHang_argument(const char** from, void* dest, const void* constraint) {
+static bool ActionHang_argument(const char** from, void* dest,
+                                const void* constraint, ParserStatus* status) {
   union ActionData* data = (union ActionData*)dest;
-  return Parse_int(from, &data[0].i, NULL);
+  return Parse_int(from, &data[0].i, NULL, status);
 }
 
 bool ActionHang_perform(int pos, ActionData* data, SocketInfo* si,

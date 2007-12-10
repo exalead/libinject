@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #include "parser.h"
 
@@ -30,6 +31,13 @@ struct Parser {
   size_t capacity;            /**< The capacity of the parser. */
   size_t length;              /**< The number of parser pieces. */
   struct ParserPiece* pieces; /**< The element of the parser. */
+};
+
+/** Status of the parser.
+ */
+struct ParserStatus {
+  char  str[1024]; /**< String describing the error. */
+  const char* pos; /**< Position of the error. */
 };
 
 Parser* Parser_init(void) {
@@ -101,14 +109,77 @@ Parser* Parser_newSubParser(Parser* parser, ParserBehaviour behaviour) {
   return subparser;
 }
 
+ParserStatus* ParserStatus_init() {
+  ParserStatus* status;
+  status = (ParserStatus*)malloc(sizeof(ParserStatus));
+  status->str[1023] = '\0';
+  status->pos = NULL;
+  return status;
+}
+
+void ParserStatus_destroy(ParserStatus* status) {
+  free(status);
+}
+
+bool ParserStatus_check(ParserStatus* status) {
+  if (!status) {
+    return false;
+  }
+  return status->pos != NULL;
+}
+
+bool ParserStatus_set(ParserStatus* status, const char* where, const char* error,
+                      bool force, const char* function, const char* file, int line) {
+  if (status && (force || status->pos == NULL)) {
+    status->pos = where;
+    snprintf(status->str, 1023, "Parser error in %s at %s:%d: \"%s\"",
+             function, file, line, error);
+  }
+  return false;
+}
+
+bool ParserStatus_clear(ParserStatus* status) {
+  if (status) {
+    status->pos = NULL;
+  }
+  return true;
+}
+
+char* ParserStatus_error(ParserStatus* status, const char* instruction) {
+  char* string = NULL;
+  int pos = 0;
+  if (status && status->pos != NULL) {
+    string = (char*)malloc(4096);
+    string[4095] = '\0';
+    pos = snprintf(string, 4095, "%s\n%s\n", status->str, instruction);
+    if (pos > 0) {
+      int offset = status->pos - instruction;
+      int count  = 0;
+      for (count = 0 ; count < offset && pos < 4095 ; ++count) {
+        string[pos] = ' ';
+        ++pos;
+        string[pos] = '\0';
+      }
+      if (pos < 4094) {
+        string[pos] = '^';
+        ++pos;
+        string[pos] = '\n';
+        ++pos;
+        string[pos] = '\0';
+      }
+    }
+  }
+  return string;
+}
+
 bool Parser_run(Parser* parser, const char* string, ParserBehaviour behaviour,
-                bool destroy) {
+                bool destroy, ParserStatus* status) {
   bool res;
   switch (behaviour) {
-    case PB_suite:    res = Parse_suite(&string, NULL, parser); break;
-    case PB_first:    res = Parse_first(&string, NULL, parser); break;
-    case PB_optional: res = Parse_optional(&string, NULL, parser); break;
-    case PB_false:    res = Parse_false(&string, NULL, parser); break;
+    case PB_suite:    res = Parse_suite(&string, NULL, parser, status); break;
+    case PB_first:    res = Parse_first(&string, NULL, parser, status); break;
+    case PB_optional: res = Parse_optional(&string, NULL, parser, status); break;
+    case PB_false:    res = Parse_false(&string, NULL, parser, status); break;
     default: res = false;
   }
   if (destroy) {
@@ -117,7 +188,7 @@ bool Parser_run(Parser* parser, const char* string, ParserBehaviour behaviour,
   return res;
 }
 
-bool Parse_suite(const char** from, void* dest, const void* constraint) {
+bool Parse_suite(const char** from, void* dest, const void* constraint, ParserStatus* status) {
   Parser* parser = (Parser*)constraint;
   const char* string;
   size_t i;
@@ -126,45 +197,47 @@ bool Parse_suite(const char** from, void* dest, const void* constraint) {
   for (i = 0 ; i < parser->length ; ++i) {
     struct ParserPiece* piece;
     piece = parser->pieces + i;
-    if (!piece->element(&string, piece->dest, piece->constraint)) {
-      return false;
+    if (!piece->element(&string, piece->dest, piece->constraint, status)) {
+      return SET_PARSE_ERROR(*from, "Parse error");
     }
   }
   *from = string;
-  return true;
+  return CLEAR_PARSE_ERROR;
 }
 
-bool Parse_first(const char** from, void* dest, const void* constraint) {
+bool Parse_first(const char** from, void* dest, const void* constraint, ParserStatus* status) {
   Parser* parser = (Parser*)constraint;
   size_t i;
 
   for (i = 0 ; i < parser->length ; ++i) {
     struct ParserPiece* piece;
     piece = parser->pieces + i;
-    if (piece->element(from, piece->dest, piece->constraint)) {
-      return true;
+    if (piece->element(from, piece->dest, piece->constraint, status)) {
+      return CLEAR_PARSE_ERROR;
     }
   }
-  return false;
+  return FORCE_PARSE_ERROR(*from, "No alternative matched");
 }
 
-bool Parse_int(const char** from, void* dest, const void* constraint) {
+bool Parse_int(const char** from, void* dest, const void* constraint, ParserStatus* status) {
   char* endofint;
   int*  intDest = (int*)dest;
 
   if (**from != '-' && !isdigit(**from)) {
-    return false;
+    return SET_PARSE_ERROR(*from, "Not an integer value");
   }
 
   *intDest = strtol(*from, &endofint, 10);
   if (*from != endofint) {
     *from = endofint;
-    return true;
+    return CLEAR_PARSE_ERROR;
   }
-  return false;
+  return SET_PARSE_ERROR(*from, "Not an integer value");
 }
 
-static inline bool Parse_until(const char** from, void* dest, const void* constraint, const char* chars) {
+static inline bool Parse_until(const char** from, void* dest,
+                               const void* constraint, const char* chars,
+                               ParserStatus* status) {
   const char* pos = NULL;
   char** dstring = (char**)dest;
   const char* cstring = (const char*)constraint;
@@ -177,7 +250,7 @@ static inline bool Parse_until(const char** from, void* dest, const void* constr
   if (cstring) {
     len = strlen(cstring);
     if (len > strlen(*from)) {
-      return false;
+      return SET_PARSE_ERROR(*from, "Constant not found");
     }
   }
   do {
@@ -193,13 +266,13 @@ static inline bool Parse_until(const char** from, void* dest, const void* constr
   matchLen = pos - (*from);
 
   if (matchLen == 0) {
-    return false;
+    return SET_PARSE_ERROR(*from, "Reading an empty word");
   }
   if (cstring) {
     size_t cLen;
     cLen = strlen(cstring);
     if (cLen != matchLen || strncmp(*from, constraint, cLen) != 0) {
-      return false;
+      return SET_PARSE_ERROR(*from, "Word do not match expected constant");
     }
   }
   if (dstring) {
@@ -208,72 +281,73 @@ static inline bool Parse_until(const char** from, void* dest, const void* constr
     (*dstring)[matchLen] = '\0';
   }
   *from = pos;
-  return true;
+  return CLEAR_PARSE_ERROR;
 }
 
-bool Parse_word(const char** from, void* dest, const void* constraint) {
-  return Parse_until(from, dest, constraint, " \t\r\n<>[][()\"\'");
+bool Parse_word(const char** from, void* dest, const void* constraint, ParserStatus* status) {
+  return Parse_until(from, dest, constraint, " \t\r\n<>[][()\"\'", status);
 }
 
-bool Parse_space(const char** from, void* dest, const void* constraint) {
+bool Parse_space(const char** from, void* dest, const void* constraint, ParserStatus* status) {
   if (!isspace(**from)) {
-    return false;
+    return SET_PARSE_ERROR(*from, "Space expected");
   }
   while (isspace(**from)) {
     ++*from;
   }
-  return true;
+  return CLEAR_PARSE_ERROR;
 }
 
-bool Parse_eob(const char** from, void* dest, const void* constraint) {
-  return **from == '\0';
+bool Parse_eob(const char** from, void* dest, const void* constraint, ParserStatus* status) {
+  return **from == '\0' ? CLEAR_PARSE_ERROR
+       : SET_PARSE_ERROR(*from, "Not at end of buffer");
 }
 
-bool Parse_line(const char** from, void* dest, const void* constraint) {
-  return Parse_until(from, dest, constraint, "\r\n");
+bool Parse_line(const char** from, void* dest, const void* constraint, ParserStatus* status) {
+  return Parse_until(from, dest, constraint, "\r\n", status);
 }
 
-bool Parse_not(const char** from, void* dest, const void* constraint) {
-  return Parse_until(from, dest, NULL, (const char*)constraint);
+bool Parse_not(const char** from, void* dest, const void* constraint, ParserStatus* status) {
+  return Parse_until(from, dest, NULL, (const char*)constraint, status);
 }
 
-bool Parse_optional(const char** from, void* dest, const void* constraint) {
-  (void) Parse_suite(from, NULL, constraint);
-  return true;
+bool Parse_optional(const char** from, void* dest, const void* constraint, ParserStatus* status) {
+  (void) Parse_suite(from, NULL, constraint, status);
+  return CLEAR_PARSE_ERROR;
 }
 
-bool Parse_false(const char** from, void* dest, const void* constraint) {
-  return ! Parse_suite(from, NULL, constraint);
+bool Parse_false(const char** from, void* dest, const void* constraint, ParserStatus* status) {
+  return ! Parse_suite(from, NULL, constraint, status);
 }
 
-inline bool Parse_enum(const char** from, void* dest, const void* constraint) {
+inline bool Parse_enum(const char** from, void* dest, const void* constraint, ParserStatus* status) {
   const Parse_enumData* data = (const Parse_enumData*)constraint;
   int* value = (int*)dest;
 
   while (data->constant != NULL) {
-    if (Parse_until(from, NULL, data->constant, " \t\r\n<>[][()\"\'.:;!?")) {
+    if (Parse_until(from, NULL, data->constant, " \t\r\n<>[][()\"\'.:;!?", status)) {
       *value = data->value;
-      return true;
+      return true; /* error cleared by Parse_until */
     }
     ++data;
   }
   *value = data->value;
-  return false;
+  return FORCE_PARSE_ERROR(*from, "No enumerated value found");
 }
 
-bool Parse_char(const char** from, void* dest, const void* constraint) {
+bool Parse_char(const char** from, void* dest, const void* constraint, ParserStatus* status) {
   const char* test = (const char*)constraint;
   while (*test != '\0') {
     if (**from == *test) {
       ++(*from);
-      return true;
+      return CLEAR_PARSE_ERROR;
     }
     ++test;
   }
-  return false;
+  return SET_PARSE_ERROR(*from, "Character not found");
 }
 
-bool Parse_bool(const char** from, void* test, const void* constraint) {
+bool Parse_bool(const char** from, void* test, const void* constraint, ParserStatus* status) {
   static Parse_enumData bools[] = { { "true", 1 }, { "false", 0 }, { NULL, 0 } };
-  return Parse_enum(from, test, &bools);
+  return Parse_enum(from, test, &bools, status);
 }
