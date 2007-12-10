@@ -195,7 +195,7 @@ struct ActionSocketData {
  * @param state Informations about the call.
  * @return true if the call is blocking.
  */
-#define IS_BLOCKING(si, state) ((si)->blocking && !((state)->flags & O_NONBLOCK))
+#define IS_BLOCKING(si, state) ((si)->blocking && !((state)->flags & MSG_DONTWAIT))
 
 /** Return the buffer to use for reading.
  *
