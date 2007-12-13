@@ -225,20 +225,24 @@ struct ParserStatus {
  */
 ParserStatus* ParserStatus_init(void);
 
-/** Set parser error status.
+/** Set the error if no error is currently set.
  *
- * You should use the @ref SET_PARSE_ERROR and @ref FORCE_PARSE_ERROR macros instead.
- *
- * @param status The status to update.
- * @param where  The position in the string at which the parse error occured.
- * @param error  String error. The string copied in an internal buffer.
- * @param force  If false and an error is already set, the elder error is
- *               kept, if true, the new error is already set.
- * @param function Function in which the parse error occured.
- * @param file   The file in which the parse error occured.
- * @param line   The line at which the parse error occured.
+ * @param where  The position in the string where the parse error occured.
+ * @param error  The error string.
  * @return Always return false.
  */
+#define SET_PARSE_ERROR(where, error)                                          \
+  ParserStatus_set(status, where, error, false, __FUNCTION__, __FILE__, __LINE__)
+
+/** Set the error.
+ *
+ * @param where  The position in the string where the parse error occured.
+ * @param error  The error string.
+ * @return Always return false.
+ */
+#define FORCE_PARSE_ERROR(where, error)                                        \
+  ParserStatus_set(status, where, error, true, __FUNCTION__, __FILE__, __LINE__)
+
 static inline bool ParserStatus_set(ParserStatus* status, const char* where,
                                     const char* error, bool force,
                                     const char* function, const char* file, int line) {
@@ -250,53 +254,19 @@ static inline bool ParserStatus_set(ParserStatus* status, const char* where,
   return false;
 }
 
-/** Set the error if no error is currently set.
+/** Clear status error state.
  *
- * A wrapper around @ref ParseStatus_set.
- *
- * @param status The status to update.
- * @param where  The position in the string where the parse error occured.
- * @param error  The error string.
- * @return Always return false.
- */
-#define SET_PARSE_ERROR(where, error)                                          \
-  ParserStatus_set(status, where, error, false, __FUNCTION__, __FILE__, __LINE__)
-
-/** Set the error.
- *
- * A wrapper around @ref ParserStatus_set
- * @param status The status to update.
- * @param where  The position in the string where the parse error occured.
- * @param error  The error string.
- * @return Always return false.
- */
-#define FORCE_PARSE_ERROR(where, error)                                        \
-  ParserStatus_set(status, where, error, true, __FUNCTION__, __FILE__, __LINE__)
-
-/** Clear the error status.
- *
- * You should use the @ref CLEAR_PARSE_ERROR macro instead.
- *
- * @param status The status to update.
  * @return Always return true.
  */
+#define CLEAR_PARSE_ERROR                                                      \
+  ParserStatus_clear(status)
+
 static inline bool ParserStatus_clear(ParserStatus* status) {
   if (status) {
     status->pos = NULL;
   }
   return true;
 }
-
-/** A wrapper around @ref ParserStatus_clear.
- *
- * This parser is a perfect alias for @ref ParserStatus_clear, but provides
- * API consistency with @ref SET_PARSE_ERROR
- *
- * @param status The status to update.
- * @return Always return true.
- */
-#define CLEAR_PARSE_ERROR                                                      \
-  ParserStatus_clear(status)
 
 /** Check if the status contains an error.
  *
