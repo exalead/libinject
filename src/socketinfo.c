@@ -97,7 +97,13 @@ SocketInfo* SocketInfo_initLight(int fd, const struct sockaddr* addr, socklen_t 
     errno = err;
     return NULL;
   }
+
   si = (SocketInfo*)malloc(sizeof(SocketInfo));
+  if (!SocketInfo_fetchData(fd, getsockname, &si->local)) {
+    free(si);
+    errno = err;
+    return NULL;
+  }
   si->remote.addr = ntohl(saddr->sin_addr.s_addr);
   si->remote.port = ntohs(saddr->sin_port);
   si->local.addr  = 0;
@@ -156,6 +162,9 @@ void SocketInfo_setData(SocketInfo* si, void* data, SocketInfoDataFree* cb) {
 }
 
 void SocketInfo_lock(SocketInfo* si) {
+  if (!si) {
+    return;
+  }
   pthread_mutex_lock(&si->semLock);
   ++si->sem;
   pthread_mutex_unlock(&si->semLock);
@@ -163,6 +172,9 @@ void SocketInfo_lock(SocketInfo* si) {
 
 void SocketInfo_unlock(SocketInfo* si) {
   bool toDestroy;
+  if (!si) {
+    return;
+  }
   pthread_mutex_lock(&si->semLock);
   si->sem--;
   toDestroy = si->toDestroy && si->sem == 0;
