@@ -89,7 +89,7 @@ def readEntry(file):
   """
   str = file.read(19)
   time, type, proto, lport, a1, a2, a3, a4, port, success = unpack('=QbbHBBBBHb', str)
-  len = 0
+  length = 0
   data = None
   if ( type != 4 and type != 8 ) or success == -1: # not connection, so w
     length = file.read(4)
